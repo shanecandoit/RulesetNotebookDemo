@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Callable
 
 from PySide6.QtCore import QStandardPaths, Qt
-from PySide6.QtGui import QAction, QFontDatabase
+from PySide6.QtGui import QAction, QBrush, QColor, QFontDatabase, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QHeaderView,
@@ -475,7 +475,7 @@ class RulesetNotebookWindow(QMainWindow):
         self.jobs: dict[str, DemoJob] = {}
         self.cache_dir = self._cache_directory()
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.setWindowTitle("Ruleset Notebook — Text Job Demo")
+        self.setWindowTitle("Ruleset Notebook - Text Job Demo")
         self.resize(1320, 820)
 
         self.job_table = QTableWidget(0, 6)
@@ -486,6 +486,44 @@ class RulesetNotebookWindow(QMainWindow):
         self.job_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.job_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.job_table.verticalHeader().setVisible(False)
+        table_palette = self.job_table.palette()
+        for color_group in (
+            QPalette.ColorGroup.Active,
+            QPalette.ColorGroup.Inactive,
+        ):
+            table_palette.setColor(
+                color_group,
+                QPalette.ColorRole.Highlight,
+                QColor("#3b82f6"),
+            )
+            table_palette.setColor(
+                color_group,
+                QPalette.ColorRole.HighlightedText,
+                QColor("#ffffff"),
+            )
+        self.job_table.setPalette(table_palette)
+        self.job_table.setStyleSheet(
+            """
+            QTableWidget {
+                selection-background-color: #3b82f6;
+                selection-color: #ffffff;
+                gridline-color: #d8e2ef;
+            }
+            QTableWidget::item:selected:!active {
+                background-color: #75a7e8;
+                color: #ffffff;
+            }
+            QHeaderView::section {
+                background-color: #eaf2fc;
+                color: #17365d;
+                border: 0;
+                border-right: 1px solid #c7d7eb;
+                border-bottom: 1px solid #b8cce4;
+                padding: 5px 7px;
+                font-weight: 600;
+            }
+            """
+        )
         header = self.job_table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -518,7 +556,7 @@ class RulesetNotebookWindow(QMainWindow):
 
         self._create_actions()
         self._create_toolbar()
-        self.statusBar().showMessage("Draft mode — edit text and choose Run")
+        self.statusBar().showMessage("Draft mode - edit text and choose Run")
         self.refresh_jobs()
         self.new_draft()
 
@@ -586,7 +624,7 @@ class RulesetNotebookWindow(QMainWindow):
         self.inputs_edit.setPlainText(DEFAULT_INPUTS)
         self.results_edit.clear()
         self.run_action.setEnabled(True)
-        self.statusBar().showMessage("Draft mode — edit text and choose Run")
+        self.statusBar().showMessage("Draft mode - edit text and choose Run")
 
     def run_draft(self) -> None:
         rules_text = self.rules_edit.toPlainText()
@@ -655,13 +693,39 @@ class RulesetNotebookWindow(QMainWindow):
             return
 
         self.refresh_jobs(select_job_id=job_id)
-        self.statusBar().showMessage(f"Cached job {job_id} — {status}")
+        self.statusBar().showMessage(f"Cached job {job_id} - {status}")
 
     def _write_job(self, job: DemoJob) -> None:
         target = self.cache_dir / job.filename
         temporary = target.with_suffix(".tmp")
         temporary.write_text(job.to_text(), encoding="utf-8")
         temporary.replace(target)
+
+    def _job_status_brush(self, status: str) -> QBrush | None:
+        if status == "normal form":
+            return QBrush(QColor("#cce5ff"))
+        if status in {"parse error", "runtime error", "internal error"}:
+            return QBrush(QColor("#f8d7da"))
+        if status in {"step limit", "depth limit", "cancelled"}:
+            return QBrush(QColor("#e2e3e5"))
+        return None
+
+    def _update_selection_color(self) -> None:
+        for row in range(self.job_table.rowCount()):
+            for column in range(self.job_table.columnCount()):
+                item = self.job_table.item(row, column)
+                if item is not None:
+                    item.setBackground(QBrush(QColor("#ffffff")))
+        job = self.selected_job()
+        if job is None:
+            return
+        brush = self._job_status_brush(job.status)
+        current_row = self.job_table.currentRow()
+        if brush is not None and current_row >= 0:
+            for column in range(self.job_table.columnCount()):
+                item = self.job_table.item(current_row, column)
+                if item is not None:
+                    item.setBackground(brush)
 
     def refresh_jobs(self, select_job_id: str | None = None) -> None:
         self.jobs.clear()
@@ -695,6 +759,7 @@ class RulesetNotebookWindow(QMainWindow):
                 selected_row = row
         if selected_row >= 0:
             self.job_table.selectRow(selected_row)
+        self._update_selection_color()
 
     def selected_job(self) -> DemoJob | None:
         row = self.job_table.currentRow()
@@ -704,6 +769,7 @@ class RulesetNotebookWindow(QMainWindow):
         return self.jobs.get(item.text()) if item else None
 
     def load_selected_job(self) -> None:
+        self._update_selection_color()
         job = self.selected_job()
         if job is None:
             return

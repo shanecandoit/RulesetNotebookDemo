@@ -226,7 +226,32 @@ mypy src
 pytest
 ```
 
-## V1 scope boundary
+## Building a Windows executable
+
+The project includes a PyInstaller build script that produces a standalone
+application bundle. Install the packaging dependency first, then run the script:
+
+```powershell
+python -m pip install -e ".[dev]"
+python build.py
+```
+
+The output is written to `dist/RulesetNotebook/`. The executable does not require
+Python to be installed on the target machine. To distribute, zip the entire
+`dist/RulesetNotebook` directory.
+
+Known PySide6 packaging notes:
+- The `--onedir` mode is used because it is more reliable than `--onefile` for
+  Qt applications on Windows.
+- UPX compression is explicitly disabled. It offers little benefit for this Qt
+  bundle and can fail on Python and Shiboken binaries with modern Windows load
+  configuration metadata.
+- PyInstaller follows the imports in `app.py` and the PySide6 hooks collect the
+  Qt libraries and platform plugins the demo actually uses. The build does not
+  use `--collect-all PySide6`, which would pull in unrelated Qt modules and their
+  optional native dependencies.
+- Antivirus software may flag the bundled executable; this is a common
+  false-positive for PyInstaller-packaged Qt apps.
 
 Version 1 is a plain-text job runner and history browser. It is not yet a visual
 notebook, HTML document, theorem prover, or general Python environment. Cells,

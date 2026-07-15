@@ -17,6 +17,7 @@ item only when its code, tests, and relevant documentation are complete.
 - [x] Preserve the current `app.py` example behavior in characterization tests.
 - [ ] Remove or replace the top-level proof-of-concept script only after those
   tests pass against the new engine.
+- [x] Add a PyInstaller build script that produces a standalone Windows executable.
 
 ## 1. Domain types
 
