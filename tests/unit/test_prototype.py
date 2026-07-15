@@ -1,4 +1,4 @@
-from app import Const, Func, Var, Rule, match, substitute, rewrite_step, evaluate
+from app import Const, Func, Rule, Var, evaluate, match, rewrite_step, substitute
 
 
 def test_const_equality():

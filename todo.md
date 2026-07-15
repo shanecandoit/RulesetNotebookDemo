@@ -5,16 +5,16 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 0. Repository baseline
 
-- [ ] Add `pyproject.toml` with Python 3.11+, PySide6, and a console entry point.
-- [ ] Add development dependencies: pytest, pytest-qt, ruff, and mypy.
-- [ ] Configure `src/ruleset_notebook` package discovery.
+- [x] Add `pyproject.toml` with Python 3.11+, PySide6, and a console entry point.
+- [x] Add development dependencies: pytest, pytest-qt, ruff, and mypy.
+- [x] Configure `src/ruleset_notebook` package discovery.
 - [x] Add `.gitignore` entries for virtual environments, caches, coverage, build
   output, and local Qt settings.
-- [ ] Add `tests/unit`, `tests/integration`, and `tests/ui` packages.
-- [ ] Add `__main__.py` so `python -m ruleset_notebook` launches the app.
-- [ ] Add a CI-friendly command or script that runs formatting, linting, typing,
+- [x] Add `tests/unit`, `tests/integration`, and `tests/ui` packages.
+- [x] Add `__main__.py` so `python -m ruleset_notebook` launches the app.
+- [x] Add a CI-friendly command or script that runs formatting, linting, typing,
   and tests.
-- [ ] Preserve the current `app.py` example behavior in characterization tests.
+- [x] Preserve the current `app.py` example behavior in characterization tests.
 - [ ] Remove or replace the top-level proof-of-concept script only after those
   tests pass against the new engine.
 

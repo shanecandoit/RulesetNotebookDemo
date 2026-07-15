@@ -1,5 +1,6 @@
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow
 import sys
+
+from PySide6.QtWidgets import QApplication, QLabel, QMainWindow
 
 
 def main() -> None:
