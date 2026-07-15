@@ -1,0 +1,232 @@
+# Ruleset Notebook
+
+Ruleset Notebook is a planned PySide6 desktop workbench for experimenting with
+term-rewriting systems. Version 1 deliberately uses plain text instead of rich
+notebook cells: write a rules file, write a list of input terms, run them, and
+keep the complete run as a reloadable job.
+
+> Status: early proof of concept. The repository currently contains a small
+> in-memory rewriting engine in `app.py`; the PySide6 interface, text parser, job
+> cache, and safety controls are not implemented yet.
+
+## Version 1 in one table
+
+The core v1 record is a cached job:
+
+| Job ID | Rules | Notebook inputs | Results / traces |
+|---|---|---|---|
+| `01J...` | Exact rules text used by the run | Exact input text used by the run | Final results, step traces, status, and errors |
+
+Every run creates a new job ID and captures all three text blocks. Reloading a
+job restores the exact rules, inputs, results, and traces from that run. Editing
+and running a restored job creates a new job rather than changing the historical
+record.
+
+This keeps the first version simple and useful:
+
+- the input format is ordinary UTF-8 text;
+- a job is a reproducible snapshot, not a mutable collection of UI cells;
+- generated results are cached with the inputs that produced them;
+- old runs remain inspectable after rules or inputs change;
+- richer cell and HTML-style presentation can be added later without changing
+  the rewriting engine.
+
+## Intended v1 interface
+
+The application has a compact job-history table and three plain-text panes:
+
+```text
++------------------------------------------------------------------------+
+| Jobs                                                                   |
+| Job ID       | Rules | Inputs | Result | Status      | Created          |
+| 01J...A      | 2     | 1      | 5      | normal form| 2026-07-15 13:10 |
++----------------------+----------------------------+--------------------+
+| Rules                | Notebook inputs            | Results / traces   |
+|                      |                            |                    |
+| add-zero:            | add(2, 3)                  | input: add(2, 3)   |
+| add(?x, 0) -> ?x     |                            | ...                |
+|                      |                            | result: 5          |
++----------------------+----------------------------+--------------------+
+```
+
+- **Jobs:** one row per cached run. Selecting a row loads its saved text into the
+  three panes.
+- **Rules:** a plain-text editor with one ordered rule per line.
+- **Notebook inputs:** a plain-text editor with one input term per non-empty line.
+- **Results / traces:** read-only plain text containing the result and reduction
+  trace for every input.
+
+The essential actions are New Draft, Run, Stop, Open Job File, Save/Export Job,
+Duplicate Job as Draft, and Delete Cached Job. V1 does not need per-cell Run
+buttons, draggable cells, rich output widgets, or an HTML renderer.
+
+## Plain-text workflow
+
+Rules are written in order:
+
+```text
+add-zero: add(?x, 0) -> ?x
+add-step: add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+```
+
+Notebook inputs are also plain text, one term per non-empty line:
+
+```text
+add(2, 3)
+add(10, 4)
+```
+
+Running the draft snapshots both blocks before evaluation. The result pane is
+generated text, for example:
+
+```text
+input 1: add(2, 3)
+  0. add(2, 3)
+  1. add(3, 2)    [add-step; ?x=2, ?y=3]
+  2. add(4, 1)    [add-step; ?x=3, ?y=2]
+  3. add(5, 0)    [add-step; ?x=4, ?y=1]
+  4. 5            [add-zero; ?x=5]
+result: 5
+status: normal form
+```
+
+Blank lines and lines beginning with `#` are ignored. A syntax error reports its
+line and column and prevents the draft from becoming a completed job. The failed
+attempt may still be cached with `parse error` status so the exact failure can be
+revisited.
+
+## Job text format
+
+V1 jobs are human-readable UTF-8 text files rather than JSON or a database. Each
+file contains a small metadata header followed by the three authoritative text
+blocks:
+
+```text
+RULESET-NOTEBOOK-JOB 1
+job-id: 01J...
+created-at: 2026-07-15T13:10:00-05:00
+status: normal-form
+max-steps: 100
+
+--- RULES ---
+add-zero: add(?x, 0) -> ?x
+add-step: add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+
+--- INPUTS ---
+add(2, 3)
+
+--- RESULTS-AND-TRACES ---
+input 1: add(2, 3)
+...
+result: 5
+status: normal form
+```
+
+Generated job files are stored in an application cache directory using the job
+ID as the filename. The Jobs table is rebuilt by scanning those headers, so v1
+does not need a database or separate index. A user can also open or export an
+individual job file. Writes must be atomic so a crash cannot leave a valid-looking
+partial job.
+
+## Term rewriting behavior
+
+Term rewriting repeatedly replaces a matching part of a term with another term.
+The initial language supports:
+
+- literals such as integers, floats, strings, and booleans;
+- symbols such as `zero`;
+- nested terms such as `pair(left, tree(a, b))`;
+- explicit pattern variables such as `?x`;
+- ordered `LHS -> RHS` rules;
+- restricted guards such as `?x > 0 and ?x <= 10`;
+- a small, documented set of numeric built-ins.
+
+V1 uses deterministic left-to-right innermost rewriting. Enabled rules are tried
+in file order, and the first valid match wins. Every successful rewrite is added
+to the plain-text trace.
+
+Evaluation has explicit step and term-depth limits and can be cancelled. A loop
+therefore produces a partial cached trace with a `step limit` result rather than
+freezing the application or overflowing Python's call stack. Guards use a
+restricted parser and never execute arbitrary Python.
+
+## Architecture direction
+
+The parser and rewriting engine remain independent of PySide6:
+
+```text
+PySide6 UI -> job/draft services -> parser + engine -> immutable domain
+```
+
+The editable `Draft` owns current rules and input text. Starting a run creates an
+immutable `JobRequest` snapshot. Evaluation runs outside the GUI thread and
+returns a structured result. A formatter turns that result into the saved trace
+text, and the job store atomically caches the whole record.
+
+The structured result remains internal even though v1 displays plain text. This
+is the seam that later supports tree widgets, notebook cells, HTML rendering, or
+interactive trace views without rewriting the evaluator.
+
+## Current prototype
+
+`app.py` currently defines basic `Const`, `Var`, `Func`, and `Rule` classes plus
+matching, substitution, and root rewriting. Run it with:
+
+```powershell
+python app.py
+```
+
+Expected output:
+
+```text
+Input : add(2, 3)
+Output: 5
+```
+
+The prototype has no text parser, PySide6 UI, job cache, tests, guards, structured
+trace, cancellation, or step limit. It is a behavior sketch, not the final
+architecture.
+
+## Development roadmap
+
+1. Package the project and characterize the current engine with tests.
+2. Add immutable terms, rule/input text parsing, formatting, and diagnostics.
+3. Implement deterministic nested rewriting, guards, limits, cancellation, and
+   structured trace results.
+4. Build the PySide6 job table and three plain-text panes.
+5. Implement immutable run snapshots and the atomic text-file job cache.
+6. Complete reload, duplicate-as-draft, deletion, tests, and desktop polish.
+7. Later, add notebook cells and HTML-like result presentation as projections of
+   the same job and trace models.
+
+See [plan.md](plan.md) for the architecture and product plan, and
+[todo.md](todo.md) for the implementation checklist.
+
+## Planned development setup
+
+Once packaging is added:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+python -m ruleset_notebook
+```
+
+Planned checks:
+
+```powershell
+ruff format --check .
+ruff check .
+mypy src
+pytest
+```
+
+## V1 scope boundary
+
+Version 1 is a plain-text job runner and history browser. It is not yet a visual
+notebook, HTML document, theorem prover, or general Python environment. Cells,
+rich output, branching exploration, modules, caching by content hash, automated
+grading, and alternative rewrite strategies are later work.
+
+License information has not yet been added.

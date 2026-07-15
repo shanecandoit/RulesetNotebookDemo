@@ -1,0 +1,15 @@
+.venv
+.venv*
+env
+env*
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+htmlcov
+dist
+build
+*.egg-info
+.qt_for_python
+.qtcreator
+*.rsnb.bak
