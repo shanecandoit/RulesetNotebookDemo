@@ -57,7 +57,9 @@ item only when its code, tests, and relevant documentation are complete.
   to prevent catch-all accidents; document the final choice.
 - [ ] Collect all variables bound by the LHS.
 - [ ] Reject RHS references to variables not present in the LHS.
-- [ ] Reject duplicate rule names so saved trace lines identify rules
+- [ ] Accept optional explicit rule names and generate
+  `<lhs-symbol>-<line-number>` when omitted.
+- [ ] Reject duplicate effective rule names so saved trace lines identify rules
   unambiguously.
 - [ ] Return validation diagnostics without throwing UI-facing exceptions.
 

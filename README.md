@@ -65,9 +65,13 @@ buttons, draggable cells, rich output widgets, or an HTML renderer.
 Rules are written in order:
 
 ```text
-add-zero: add(?x, 0) -> ?x
-add-step: add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+add(?x, 0) -> ?x
+add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
 ```
+
+Rule names are optional. A named rule can still use
+`add-zero: add(?x, 0) -> ?x`. When the prefix is omitted, the parser generates a
+trace name from the LHS symbol and physical line number, such as `add-2`.
 
 Notebook inputs are also plain text, one term per non-empty line:
 
@@ -109,8 +113,8 @@ status: normal-form
 max-steps: 100
 
 --- RULES ---
-add-zero: add(?x, 0) -> ?x
-add-step: add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+add(?x, 0) -> ?x
+add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
 
 --- INPUTS ---
 add(2, 3)

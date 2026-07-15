@@ -200,21 +200,22 @@ guards but rejected in notebook input terms for v1.
 ### Rules
 
 ```text
-name: left-hand-side -> right-hand-side
-name: left-hand-side -> right-hand-side when guard-expression
+[name:] left-hand-side -> right-hand-side
+[name:] left-hand-side -> right-hand-side when guard-expression
 ```
 
 Examples:
 
 ```text
-add-zero: add(?x, 0) -> ?x
-add-step: add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+add(?x, 0) -> ?x
+add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
 negative: add(?x, ?y) -> error("negative operand") when ?y < 0
 ```
 
-Rule names must be non-empty and unique within one job so trace text can refer to
-them unambiguously. A replacement or guard may reference only variables bound by
-its LHS.
+Explicit rule names must be non-empty and effective names must be unique within
+one job. When no name is supplied, parsing generates `<lhs-symbol>-<line-number>`
+(for example, `add-2`). This keeps trace text readable without requiring naming
+ceremony. A replacement or guard may reference only variables bound by its LHS.
 
 ### Guards and built-ins
 
@@ -282,8 +283,8 @@ input-count: 1
 result-summary: 5
 
 --- RULES ---
-add-zero: add(?x, 0) -> ?x
-add-step: add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+add(?x, 0) -> ?x
+add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
 
 --- INPUTS ---
 add(2, 3)
