@@ -9,6 +9,15 @@ from .terms import Term
 
 
 @dataclass(frozen=True)
+class ComparisonGuard:
+    """A safe comparison between a bound variable and an integer literal."""
+
+    variable: str
+    operation: str
+    expected: int
+
+
+@dataclass(frozen=True)
 class Rule:
     """An immutable rewrite rule with a stable identity.
 
@@ -22,7 +31,7 @@ class Rule:
     lhs: Term
     rhs: Term
     id: uuid.UUID = field(default_factory=uuid.uuid4)
-    guard: object = None
+    guard: ComparisonGuard | None = None
     enabled: bool = True
     source_line: int = 0
 

@@ -5,9 +5,9 @@ term-rewriting systems. Version 1 deliberately uses plain text instead of rich
 notebook cells: write a rules file, write a list of input terms, run them, and
 keep the complete run as a reloadable job.
 
-> Status: early proof of concept. The repository currently contains a small
-> in-memory rewriting engine in `app.py`; the PySide6 interface, text parser, job
-> cache, and safety controls are not implemented yet.
+> Status: working v1 prototype. The PySide6 interface and CLI now share the term
+> model, text parser, and rewrite engine under `src/ruleset_notebook`. Job storage
+> and the current window remain intentionally simple.
 
 ## Version 1 in one table
 
@@ -176,25 +176,29 @@ The structured result remains internal even though v1 displays plain text. This
 is the seam that later supports tree widgets, notebook cells, HTML rendering, or
 interactive trace views without rewriting the evaluator.
 
-## Current prototype
+## Running the prototype
 
-`app.py` currently defines basic `Const`, `Var`, `Func`, and `Rule` classes plus
-matching, substitution, and root rewriting. Run it with:
+After the editable install, launch the GUI with either command:
+
+```powershell
+python -m ruleset_notebook
+ruleset-notebook
+```
+
+The root script remains as a compatibility shortcut for repo development:
 
 ```powershell
 python app.py
 ```
 
-Expected output:
+The CLI is a separate front end over the same parser and domain model:
 
-```text
-Input : add(2, 3)
-Output: 5
+```powershell
+ruleset-notebook-cli "add(2, 3)"
 ```
 
-The prototype has no text parser, PySide6 UI, job cache, tests, guards, structured
-trace, cancellation, or step limit. It is a behavior sketch, not the final
-architecture.
+Shared behavior lives in `language.py` and `engine.py`; the GUI lives in
+`ui/main_window.py`. The root `app.py` contains no parser or evaluator logic.
 
 ## Development roadmap
 
@@ -251,8 +255,8 @@ Known PySide6 packaging notes:
 - UPX compression is explicitly disabled. It offers little benefit for this Qt
   bundle and can fail on Python and Shiboken binaries with modern Windows load
   configuration metadata.
-- PyInstaller follows the imports in `app.py` and the PySide6 hooks collect the
-  Qt libraries and platform plugins the demo actually uses. The build does not
+- PyInstaller follows the package GUI entry point and the PySide6 hooks collect
+  the Qt libraries and platform plugins the demo actually uses. The build does not
   use `--collect-all PySide6`, which would pull in unrelated Qt modules and their
   optional native dependencies.
 - Antivirus software may flag the bundled executable; this is a common

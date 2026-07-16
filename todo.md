@@ -15,8 +15,9 @@ item only when its code, tests, and relevant documentation are complete.
 - [x] Add a CI-friendly command or script that runs formatting, linting, typing,
   and tests.
 - [x] Preserve the current `app.py` example behavior in characterization tests.
-- [ ] Remove or replace the top-level proof-of-concept script only after those
-  tests pass against the new engine.
+- [x] Replace the top-level proof-of-concept with a compatibility launcher after
+  migrating its characterization tests to the shared engine.
+- [x] Make the GUI and CLI use the same domain types and text parser.
 - [x] Add a PyInstaller build script that produces a standalone Windows executable.
 
 ## 1. Domain types

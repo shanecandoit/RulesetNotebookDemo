@@ -1,6 +1,6 @@
 import pytest
 
-from app import DemoSyntaxError, parse_rules
+from ruleset_notebook.language import LanguageSyntaxError, parse_inputs, parse_rules
 
 
 def test_parse_rules_generates_names_from_symbol_and_source_line():
@@ -21,7 +21,7 @@ def test_parse_rules_preserves_explicit_names():
 
 
 def test_parse_rules_rejects_duplicate_effective_names():
-    with pytest.raises(DemoSyntaxError, match="duplicate rule name 'add-2'"):
+    with pytest.raises(LanguageSyntaxError, match="duplicate rule name 'add-2'"):
         parse_rules(
             """add-2: add(x, 0) => x
 add(x, y) => add(inc(x), dec(y))
@@ -37,8 +37,6 @@ def test_rule_context_treats_lowercase_leaves_as_variables():
 
 
 def test_input_context_treats_lowercase_leaves_as_symbols():
-    from app import parse_inputs
-
     [(line, term)] = parse_inputs("value")
 
     assert line == 1

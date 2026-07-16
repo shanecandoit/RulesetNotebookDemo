@@ -14,7 +14,7 @@ from .results import (
     StopReason,
     UnboundVariableError,
 )
-from .rules import EvaluationSettings, Rule
+from .rules import ComparisonGuard, EvaluationSettings, Rule
 from .source import SourcePosition, SourceSpan
 from .terms import Application, Literal, Term, Var
 
@@ -28,6 +28,7 @@ __all__ = [
     "Diagnostic",
     "Severity",
     "Rule",
+    "ComparisonGuard",
     "EvaluationSettings",
     "RewriteEvent",
     "EvaluationResult",

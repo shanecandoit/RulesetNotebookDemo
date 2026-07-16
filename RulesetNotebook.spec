@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['app.py'],
+    ['src\\ruleset_notebook\\__main__.py'],
     pathex=[],
     binaries=[],
     datas=[],

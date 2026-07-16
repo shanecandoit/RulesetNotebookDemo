@@ -4,7 +4,7 @@ import PyInstaller.__main__
 def main() -> None:
     PyInstaller.__main__.run(
         [
-            "app.py",
+            "src/ruleset_notebook/__main__.py",
             "--name",
             "RulesetNotebook",
             "--onedir",
