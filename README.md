@@ -78,6 +78,10 @@ symbols are unambiguous because they are followed by parentheses. Use an
 uppercase leaf such as `Zero` when a rule needs a concrete symbolic constant.
 Notebook inputs are concrete terms, so a lowercase leaf there remains a symbol.
 
+In the current v1 parser, negative numbers are signed integer literals (for
+example, `-3`), not a separate unary operator. Floats, quoted strings, and
+span-aware diagnostics remain planned parser work.
+
 Notebook inputs are also plain text, one term per non-empty line:
 
 ```text

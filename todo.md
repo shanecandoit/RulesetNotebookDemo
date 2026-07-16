@@ -40,16 +40,17 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] Track source spans across whitespace and newlines.
 - [ ] Support escaped quotes, backslashes, tabs, and newlines in strings.
 - [ ] Produce a diagnostic for invalid characters and unterminated strings.
-- [ ] Parse bare symbols and function-like applications.
-- [ ] Interpret lowercase leaves as variables in rule context and as symbols in
+- [x] Parse bare symbols and function-like applications.
+- [x] Interpret lowercase leaves as variables in rule context and as symbols in
   notebook-input context; reserve uppercase leaves for rule constants.
 - [ ] Parse nested and grouped terms.
-- [ ] Reject variables in notebook input mode.
+- [x] Reject variables in notebook input mode (lowercase leaves parse as symbols,
+  never `Var` nodes).
 - [ ] Reject missing commas, missing parentheses, and trailing unexpected tokens
   with precise spans.
-- [ ] Decide whether negative numbers are signed literals or unary syntax and
+- [x] Decide whether negative numbers are signed literals or unary syntax and
   encode that decision in tests and the README syntax section.
-- [ ] Add parameterized valid/invalid parser tests.
+- [x] Add parameterized valid/invalid parser tests.
 
 ## 3. Formatting and rule validation
 
