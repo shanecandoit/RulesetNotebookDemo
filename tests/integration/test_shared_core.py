@@ -1,6 +1,6 @@
 from ruleset_notebook.cli import main as cli_main
 from ruleset_notebook.domain import Literal, StopReason
-from ruleset_notebook.engine import evaluate_with_trace
+from ruleset_notebook.engine import evaluate_with_trace, format_trace_lines
 from ruleset_notebook.language import parse_inputs, parse_rules
 
 RULES = """\
@@ -28,3 +28,12 @@ def test_shared_parser_and_engine_evaluate_gui_example():
 def test_cli_uses_shared_term_parser(capsys):
     assert cli_main(["add(2, 3)"]) == 0
     assert capsys.readouterr().out.strip() == "add(2, 3)"
+
+
+def test_trace_lines_use_json_like_metadata():
+    rules = parse_rules("add(x, 0) => x")
+    term = parse_inputs("add(2, 0)")[0][1]
+
+    result = evaluate_with_trace(term, rules)
+
+    assert format_trace_lines(result)[1].endswith("{rule:add-1, x:2, position:root}")

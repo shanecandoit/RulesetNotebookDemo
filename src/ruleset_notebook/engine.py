@@ -166,11 +166,15 @@ def evaluate_with_trace(
 def format_trace_lines(result: EvaluationResult) -> list[str]:
     lines = [f"  0. {result.input_term}"]
     for event in result.events:
-        binding_text = ", ".join(
-            f"{name}={value}" for name, value in sorted(event.bindings.items())
+        fields = [f"rule:{event.rule_name}"]
+        fields.extend(
+            f"{name}:{value}" for name, value in sorted(event.bindings.items())
         )
-        lines.append(
-            f"  {event.index}. {event.after} "
-            f"[{event.rule_name}; {binding_text}; position=root]"
+        position = (
+            "root"
+            if not event.position
+            else ".".join(str(index) for index in event.position)
         )
+        fields.append(f"position:{position}")
+        lines.append(f"  {event.index}. {event.after} {{{', '.join(fields)}}}")
     return lines

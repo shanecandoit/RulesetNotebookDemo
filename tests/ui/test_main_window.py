@@ -18,7 +18,7 @@ def test_window_runs_default_draft_through_shared_core(tmp_path):
 
     assert window.job_table.rowCount() == 1
     assert "result: 5" in window.results_edit.toPlainText()
-    assert "x=2, y=3" in window.results_edit.toPlainText()
+    assert "{rule:add-3, x:2, y:3, position:root}" in window.results_edit.toPlainText()
     assert list(tmp_path.glob("*.rsjob"))
     window.close()
     assert application is not None
