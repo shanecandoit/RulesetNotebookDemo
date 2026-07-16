@@ -46,6 +46,12 @@ class InvalidOperandError(EngineError):
     code = "invalid-operand"
 
 
+class GuardEvaluationError(EngineError):
+    """A guard could not be evaluated for the matched literal values."""
+
+    code = "guard-evaluation-error"
+
+
 class UnboundVariableError(EngineError):
     """A substitution referenced a variable with no binding."""
 

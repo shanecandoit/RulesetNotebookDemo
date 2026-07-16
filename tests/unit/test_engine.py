@@ -1,5 +1,22 @@
-from ruleset_notebook.domain import Application, Literal, Rule, Var
-from ruleset_notebook.engine import evaluate, match, rewrite_step, substitute
+import inspect
+
+import pytest
+
+from ruleset_notebook.domain import (
+    Application,
+    GuardEvaluationError,
+    Literal,
+    Rule,
+    Var,
+)
+from ruleset_notebook.engine import (
+    evaluate,
+    evaluate_guard,
+    match,
+    rewrite_step,
+    substitute,
+)
+from ruleset_notebook.language import parse_rules
 
 
 def test_literal_equality():
@@ -93,3 +110,27 @@ def test_evaluate_add_two_plus_three_reaches_five():
     )
     term = Application("add", (Literal(2), Literal(3)))
     assert evaluate(term, [zero, step]) == Literal(5)
+
+
+def test_guard_true_false_and_grouped_conjunction():
+    true_rule = parse_rules("pair(x, y) => x when y > 0 and (x < 10)")[0]
+    false_rule = parse_rules("pair(x, y) => x when y > 0 and (x < 10)")[0]
+
+    assert evaluate_guard(true_rule.guard, {"x": Literal(2), "y": Literal(3)})
+    assert not evaluate_guard(false_rule.guard, {"x": Literal(12), "y": Literal(3)})
+
+
+def test_guard_missing_binding_and_type_error_are_typed():
+    rule = parse_rules("pair(x, y) => x when y > 0")[0]
+
+    with pytest.raises(GuardEvaluationError, match="no match binding"):
+        evaluate_guard(rule.guard, {"x": Literal(2)})
+    with pytest.raises(GuardEvaluationError, match="incompatible types"):
+        evaluate_guard(rule.guard, {"x": Literal(2), "y": Literal("three")})
+
+
+def test_guard_implementation_does_not_use_eval_or_exec():
+    source = inspect.getsource(evaluate_guard)
+
+    assert "eval(" not in source
+    assert "exec(" not in source

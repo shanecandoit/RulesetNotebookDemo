@@ -9,12 +9,21 @@ from .results import (
     DivisionByZeroError,
     EngineError,
     EvaluationResult,
+    GuardEvaluationError,
     InvalidOperandError,
     RewriteEvent,
     StopReason,
     UnboundVariableError,
 )
-from .rules import ComparisonGuard, EvaluationSettings, Rule
+from .rules import (
+    EvaluationSettings,
+    GuardComparison,
+    GuardConjunction,
+    GuardExpr,
+    GuardGroup,
+    GuardValue,
+    Rule,
+)
 from .source import SourcePosition, SourceSpan
 from .terms import Application, Literal, Term, Var
 
@@ -28,7 +37,11 @@ __all__ = [
     "Diagnostic",
     "Severity",
     "Rule",
-    "ComparisonGuard",
+    "GuardValue",
+    "GuardComparison",
+    "GuardConjunction",
+    "GuardExpr",
+    "GuardGroup",
     "EvaluationSettings",
     "RewriteEvent",
     "EvaluationResult",
@@ -36,5 +49,6 @@ __all__ = [
     "EngineError",
     "DivisionByZeroError",
     "InvalidOperandError",
+    "GuardEvaluationError",
     "UnboundVariableError",
 ]

@@ -77,14 +77,14 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 4. Guards
 
-- [ ] Add guard AST nodes for values, comparisons, conjunctions, and grouping.
-- [ ] Parse `==`, `!=`, `<`, `<=`, `>`, `>=`, and `and`.
-- [ ] Resolve guard variables only from match bindings.
-- [ ] Reject unbound guard variables during validation.
-- [ ] Define comparison behavior for mismatched literal types.
-- [ ] Return a typed guard failure for invalid runtime comparisons.
-- [ ] Confirm no guard path imports or calls Python `eval`/`exec`.
-- [ ] Test true, false, compound, grouped, missing-variable, and type-error cases.
+- [x] Add guard AST nodes for values, comparisons, conjunctions, and grouping.
+- [x] Parse `==`, `!=`, `<`, `<=`, `>`, `>=`, and `and`.
+- [x] Resolve guard variables only from match bindings.
+- [x] Reject unbound guard variables during validation.
+- [x] Define comparison behavior for mismatched literal types.
+- [x] Return a typed guard failure for invalid runtime comparisons.
+- [x] Confirm no guard path imports or calls Python `eval`/`exec`.
+- [x] Test true, false, compound, grouped, missing-variable, and type-error cases.
 
 ## 5. Matcher and substitution
 

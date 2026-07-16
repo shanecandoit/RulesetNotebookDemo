@@ -4,17 +4,42 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
+from typing import Union
 
 from .terms import Term
 
 
 @dataclass(frozen=True)
-class ComparisonGuard:
-    """A safe comparison between a bound variable and an integer literal."""
+class GuardValue:
+    """A literal or binding reference used by a guard comparison."""
 
-    variable: str
+    term: Term
+
+
+@dataclass(frozen=True)
+class GuardComparison:
+    """A typed comparison between two guard values."""
+
+    left: GuardValue
     operation: str
-    expected: int
+    right: GuardValue
+
+
+@dataclass(frozen=True)
+class GuardConjunction:
+    """A short-circuiting conjunction of guard expressions."""
+
+    items: tuple["GuardExpr", ...]
+
+
+@dataclass(frozen=True)
+class GuardGroup:
+    """An explicitly parenthesized guard expression."""
+
+    expression: "GuardExpr"
+
+
+GuardExpr = Union[GuardComparison, GuardConjunction, GuardGroup]
 
 
 @dataclass(frozen=True)
@@ -31,7 +56,7 @@ class Rule:
     lhs: Term
     rhs: Term
     id: uuid.UUID = field(default_factory=uuid.uuid4)
-    guard: ComparisonGuard | None = None
+    guard: GuardExpr | None = None
     enabled: bool = True
     source_line: int = 0
 

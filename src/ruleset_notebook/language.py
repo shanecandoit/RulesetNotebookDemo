@@ -8,8 +8,12 @@ import re
 
 from .domain import (
     Application,
-    ComparisonGuard,
     Diagnostic,
+    GuardComparison,
+    GuardConjunction,
+    GuardExpr,
+    GuardGroup,
+    GuardValue,
     Literal,
     Rule,
     Severity,
@@ -27,7 +31,10 @@ class LanguageSyntaxError(ValueError):
 TOKEN_RE = re.compile(
     r'\s*(?:(-?(?:\d+\.\d*|\.\d+))|(-?\d+)|("(?:\\.|[^"\\])*")|([A-Za-z_]\w*)|([(),]))'
 )
-GUARD_RE = re.compile(r"^([a-z][A-Za-z0-9_]*)\s*(==|!=|<=|>=|<|>)\s*(-?\d+)$")
+GUARD_TOKEN_RE = re.compile(
+    r"\s*(?:(==|!=|<=|>=|<|>)|(\()|(\))|(and\b)|(-?(?:\d+\.\d*|\.\d+))|"
+    r'(-?\d+)|("(?:\\.|[^"\\])*")|([A-Za-z_]\w*))'
+)
 
 
 class TermParser:
@@ -127,14 +134,72 @@ def format_term(term: Term) -> str:
     return repr(value)
 
 
-def parse_guard(source: str, line_number: int) -> ComparisonGuard:
-    guard_match = GUARD_RE.fullmatch(source.strip())
-    if guard_match is None:
-        raise LanguageSyntaxError(
-            f"rules line {line_number}: guards use 'name <op> integer'"
-        )
-    variable, operation, expected = guard_match.groups()
-    return ComparisonGuard(variable, operation, int(expected))
+class GuardParser:
+    def __init__(self, source: str, line_number: int):
+        self.line_number = line_number
+        self.tokens: list[str] = []
+        position = 0
+        while position < len(source):
+            match = GUARD_TOKEN_RE.match(source, position)
+            if match is None:
+                raise LanguageSyntaxError(
+                    f"rules line {line_number}: invalid guard near "
+                    f"column {position + 1}"
+                )
+            self.tokens.append(next(part for part in match.groups() if part))
+            position = match.end()
+        self.index = 0
+
+    def parse(self) -> GuardExpr:
+        items = [self._parse_group()]
+        while self._peek() == "and":
+            self._take()
+            items.append(self._parse_group())
+        if self._peek() is not None and self._peek() != ")":
+            raise LanguageSyntaxError(
+                f"rules line {self.line_number}: unexpected guard token "
+                f"{self._peek()!r}"
+            )
+        if len(items) == 1:
+            return items[0]
+        return GuardConjunction(tuple(items))
+
+    def _parse_group(self) -> GuardExpr:
+        if self._peek() == "(":
+            self._take()
+            expression = self.parse()
+            if self._take() != ")":
+                raise LanguageSyntaxError(
+                    f"rules line {self.line_number}: expected ')' in guard"
+                )
+            return GuardGroup(expression)
+        left = self._parse_value()
+        operation = self._take()
+        if operation not in {"==", "!=", "<", "<=", ">", ">="}:
+            raise LanguageSyntaxError(
+                f"rules line {self.line_number}: expected comparison operator"
+            )
+        return GuardComparison(left, operation, self._parse_value())
+
+    def _parse_value(self) -> GuardValue:
+        token = self._take()
+        return GuardValue(parse_term(token, lowercase_variables=True))
+
+    def _peek(self) -> str | None:
+        return self.tokens[self.index] if self.index < len(self.tokens) else None
+
+    def _take(self) -> str:
+        token = self._peek()
+        if token is None:
+            raise LanguageSyntaxError(
+                f"rules line {self.line_number}: incomplete guard"
+            )
+        self.index += 1
+        return token
+
+
+def parse_guard(source: str, line_number: int) -> GuardExpr:
+    return GuardParser(source.strip(), line_number).parse()
 
 
 def generated_rule_name(lhs: Term, line_number: int) -> str:
@@ -158,6 +223,19 @@ def _variable_names(term: Term) -> set[str]:
     return set()
 
 
+def _guard_variable_names(guard: GuardExpr) -> set[str]:
+    names: set[str] = set()
+    if isinstance(guard, GuardGroup):
+        return _guard_variable_names(guard.expression)
+    if isinstance(guard, GuardConjunction):
+        for item in guard.items:
+            names.update(_guard_variable_names(item))
+    else:
+        names.update(_variable_names(guard.left.term))
+        names.update(_variable_names(guard.right.term))
+    return names
+
+
 def validate_rule(rule: Rule) -> list[Diagnostic]:
     diagnostics: list[Diagnostic] = []
     if isinstance(rule.lhs, Var):
@@ -177,6 +255,15 @@ def validate_rule(rule: Rule) -> list[Diagnostic]:
                 message=f"RHS variable {name!r} is not bound by the LHS",
             )
         )
+    if rule.guard is not None:
+        for name in sorted(_guard_variable_names(rule.guard) - bound):
+            diagnostics.append(
+                Diagnostic(
+                    code="unbound-guard-variable",
+                    severity=Severity.ERROR,
+                    message=f"guard variable {name!r} is not bound by the LHS",
+                )
+            )
     return diagnostics
 
 

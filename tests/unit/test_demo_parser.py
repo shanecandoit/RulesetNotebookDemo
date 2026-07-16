@@ -1,5 +1,6 @@
 import pytest
 
+from ruleset_notebook.domain import GuardComparison, GuardConjunction, GuardGroup
 from ruleset_notebook.language import (
     LanguageSyntaxError,
     format_term,
@@ -85,6 +86,20 @@ add(x, y) => add(inc(x), dec(y))
 def test_parse_rules_rejects_unbound_rhs_variable():
     with pytest.raises(LanguageSyntaxError, match="RHS variable 'y'"):
         parse_rules("pair(x, 0) => y")
+
+
+def test_parse_rules_builds_compound_grouped_guard_ast():
+    rule = parse_rules("pair(x, y) => x when y > 0 and (x < 10)")[0]
+
+    assert isinstance(rule.guard, GuardConjunction)
+    assert len(rule.guard.items) == 2
+    assert isinstance(rule.guard.items[0], GuardComparison)
+    assert isinstance(rule.guard.items[1], GuardGroup)
+
+
+def test_parse_rules_rejects_unbound_guard_variable():
+    with pytest.raises(LanguageSyntaxError, match="guard variable 'z'"):
+        parse_rules("pair(x, y) => x when z > 0")
 
 
 def test_parse_rules_rejects_catch_all_lhs():

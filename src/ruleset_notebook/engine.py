@@ -4,11 +4,17 @@ from __future__ import annotations
 
 import operator
 from collections.abc import Mapping
+from typing import cast
 
 from .domain import (
     Application,
-    ComparisonGuard,
     EvaluationResult,
+    GuardComparison,
+    GuardConjunction,
+    GuardEvaluationError,
+    GuardExpr,
+    GuardGroup,
+    GuardValue,
     Literal,
     RewriteEvent,
     Rule,
@@ -83,16 +89,52 @@ def substitute(template: Term, bindings: Mapping[str, Term]) -> Term:
     return Application(template.symbol, children)
 
 
-def guard_allows(guard: ComparisonGuard | None, bindings: Bindings) -> bool:
+def _guard_value(value: GuardValue, bindings: Bindings) -> object:
+    term = value.term
+    if isinstance(term, Var):
+        bound = bindings.get(term.name)
+        if bound is None:
+            raise GuardEvaluationError(
+                f"guard variable {term.name!r} has no match binding"
+            )
+        term = bound
+    if not isinstance(term, Literal):
+        raise GuardEvaluationError("guards can compare literal values only")
+    return term.value
+
+
+def _compare_guard(comparison: GuardComparison, bindings: Bindings) -> bool:
+    left = _guard_value(comparison.left, bindings)
+    right = _guard_value(comparison.right, bindings)
+    if comparison.operation in {"==", "!="}:
+        equal = type(left) is type(right) and left == right
+        return equal if comparison.operation == "==" else not equal
+    numeric = (int, float)
+    if isinstance(left, bool) or isinstance(right, bool):
+        raise GuardEvaluationError("boolean values cannot be ordered")
+    if not (
+        (isinstance(left, numeric) and isinstance(right, numeric))
+        or (isinstance(left, str) and isinstance(right, str))
+    ):
+        raise GuardEvaluationError("guard values have incompatible types")
+    try:
+        return cast(bool, GUARD_OPERATORS[comparison.operation](left, right))
+    except TypeError as error:
+        raise GuardEvaluationError("guard values have incompatible types") from error
+
+
+def evaluate_guard(guard: GuardExpr, bindings: Bindings) -> bool:
+    if isinstance(guard, GuardGroup):
+        return evaluate_guard(guard.expression, bindings)
+    if isinstance(guard, GuardConjunction):
+        return all(evaluate_guard(item, bindings) for item in guard.items)
+    return _compare_guard(guard, bindings)
+
+
+def guard_allows(guard: GuardExpr | None, bindings: Bindings) -> bool:
     if guard is None:
         return True
-    value = bindings.get(guard.variable)
-    compare = GUARD_OPERATORS[guard.operation]
-    return (
-        isinstance(value, Literal)
-        and isinstance(value.value, int)
-        and compare(value.value, guard.expected)
-    )
+    return evaluate_guard(guard, bindings)
 
 
 def attempt_rewrite(
