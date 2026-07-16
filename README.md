@@ -247,6 +247,14 @@ The output is written to `dist/RulesetNotebook/`. The executable does not requir
 Python to be installed on the target machine. To distribute, zip the entire
 `dist/RulesetNotebook` directory.
 
+## Continuous integration and releases
+
+GitHub Actions runs `python check.py` on Windows, macOS, and Linux for Python
+3.11 and 3.12. Pushes to `main` also build PyInstaller bundles for all three
+operating systems. Pushing a version tag such as `v0.1.0` publishes those bundles
+as a GitHub Release; each archive is platform-specific and must be built on its
+target operating system.
+
 Known PySide6 packaging notes:
 - The `--onedir` mode is used because it is more reliable than `--onefile` for
   Qt applications on Windows.

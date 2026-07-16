@@ -14,11 +14,14 @@ item only when its code, tests, and relevant documentation are complete.
 - [x] Add `__main__.py` so `python -m ruleset_notebook` launches the app.
 - [x] Add a CI-friendly command or script that runs formatting, linting, typing,
   and tests.
+- [x] Add GitHub Actions checks on Windows, macOS, and Linux.
 - [x] Preserve the current `app.py` example behavior in characterization tests.
 - [x] Replace the top-level proof-of-concept with a compatibility launcher after
   migrating its characterization tests to the shared engine.
 - [x] Make the GUI and CLI use the same domain types and text parser.
 - [x] Add a PyInstaller build script that produces a standalone Windows executable.
+- [x] Build and archive PyInstaller bundles per operating system in CI; publish
+  version-tagged bundles as GitHub Releases.
 
 ## 1. Domain types
 
