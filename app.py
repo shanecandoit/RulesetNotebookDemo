@@ -54,7 +54,7 @@ class Var(Term):
         self.name = name
 
     def __repr__(self) -> str:
-        return f"?{self.name}"
+        return self.name
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, Var) and self.name == other.name
@@ -197,12 +197,13 @@ class DemoSyntaxError(ValueError):
     """A source error produced by the deliberately small demo parser."""
 
 
-TOKEN_RE = re.compile(r"\s*(?:(\?[A-Za-z_]\w*)|(-?\d+)|([A-Za-z_]\w*)|([(),]))")
+TOKEN_RE = re.compile(r"\s*(?:(-?\d+)|([A-Za-z_]\w*)|([(),]))")
 
 
 class TermParser:
-    def __init__(self, source: str):
+    def __init__(self, source: str, *, lowercase_variables: bool = False):
         self.source = source
+        self.lowercase_variables = lowercase_variables
         self.tokens: list[str] = []
         position = 0
         while position < len(source):
@@ -226,14 +227,14 @@ class TermParser:
 
     def _parse_term(self) -> Term:
         token = self._take()
-        if token.startswith("?"):
-            return Var(token[1:])
         if re.fullmatch(r"-?\d+", token):
             return Const(int(token))
         if not re.fullmatch(r"[A-Za-z_]\w*", token):
             raise DemoSyntaxError(f"expected a term, found {token!r}")
 
         if self._peek() != "(":
+            if self.lowercase_variables and token[0].islower():
+                return Var(token)
             return Func(token, [])
         self._take("(")
         args: list[Term] = []
@@ -260,11 +261,11 @@ class TermParser:
         return token
 
 
-def parse_term(source: str) -> Term:
-    return TermParser(source).parse()
+def parse_term(source: str, *, lowercase_variables: bool = False) -> Term:
+    return TermParser(source, lowercase_variables=lowercase_variables).parse()
 
 
-GUARD_RE = re.compile(r"^(\?[A-Za-z_]\w*)\s*(==|!=|<=|>=|<|>)\s*(-?\d+)$")
+GUARD_RE = re.compile(r"^([a-z][A-Za-z0-9_]*)\s*(==|!=|<=|>=|<|>)\s*(-?\d+)$")
 GUARD_OPERATORS = {
     "==": operator.eq,
     "!=": operator.ne,
@@ -279,14 +280,14 @@ def parse_guard(source: str, line_number: int) -> Guard:
     guard_match = GUARD_RE.fullmatch(source.strip())
     if guard_match is None:
         raise DemoSyntaxError(
-            f"rules line {line_number}: demo guards use '?name <op> integer'"
+            f"rules line {line_number}: demo guards use 'name <op> integer'"
         )
     variable, operation, expected_source = guard_match.groups()
     expected = int(expected_source)
     compare = GUARD_OPERATORS[operation]
 
     def guard(env: dict[str, Term]) -> bool:
-        value = env.get(variable[1:])
+        value = env.get(variable)
         return (
             isinstance(value, Const)
             and isinstance(value.value, int)
@@ -304,10 +305,10 @@ def parse_rules(source: str) -> list[Rule]:
         if not line or line.startswith("#"):
             continue
         try:
-            lhs_and_name, rhs_and_guard = line.split("->", 1)
+            lhs_and_name, rhs_and_guard = line.split("=>", 1)
         except ValueError as error:
             raise DemoSyntaxError(
-                f"rules line {line_number}: expected '[name:] lhs -> rhs'"
+                f"rules line {line_number}: expected '[name:] lhs => rhs'"
             ) from error
 
         explicit_name, separator, lhs_source = lhs_and_name.partition(":")
@@ -317,8 +318,8 @@ def parse_rules(source: str) -> list[Rule]:
 
         rhs_source, separator, guard_source = rhs_and_guard.partition(" when ")
         try:
-            lhs = parse_term(lhs_source.strip())
-            rhs = parse_term(rhs_source.strip())
+            lhs = parse_term(lhs_source.strip(), lowercase_variables=True)
+            rhs = parse_term(rhs_source.strip(), lowercase_variables=True)
             guard = parse_guard(guard_source, line_number) if separator else None
         except DemoSyntaxError as error:
             raise DemoSyntaxError(f"rules line {line_number}: {error}") from error
@@ -374,7 +375,7 @@ def evaluate_with_trace(
         if not changed or selected_rule is None:
             return current, lines, "normal form"
         binding_text = ", ".join(
-            f"?{name}={value}" for name, value in sorted(bindings.items())
+            f"{name}={value}" for name, value in sorted(bindings.items())
         )
         lines.append(
             f"  {index}. {next_term} "
@@ -458,8 +459,8 @@ class DemoJob:
 
 DEFAULT_RULES = """\
 # Rules are tried from top to bottom.
-add(?x, 0) -> ?x
-add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+add(x, 0) => x
+add(x, y) => add(inc(x), dec(y)) when y > 0
 """
 
 DEFAULT_INPUTS = """\

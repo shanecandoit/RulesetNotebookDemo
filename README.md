@@ -44,7 +44,7 @@ The application has a compact job-history table and three plain-text panes:
 | Rules                | Notebook inputs            | Results / traces   |
 |                      |                            |                    |
 | add-zero:            | add(2, 3)                  | input: add(2, 3)   |
-| add(?x, 0) -> ?x     |                            | ...                |
+| add(x, 0) => x       |                            | ...                |
 |                      |                            | result: 5          |
 +----------------------+----------------------------+--------------------+
 ```
@@ -65,13 +65,18 @@ buttons, draggable cells, rich output widgets, or an HTML renderer.
 Rules are written in order:
 
 ```text
-add(?x, 0) -> ?x
-add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+add(x, 0) => x
+add(x, y) => add(inc(x), dec(y)) when y > 0
 ```
 
 Rule names are optional. A named rule can still use
-`add-zero: add(?x, 0) -> ?x`. When the prefix is omitted, the parser generates a
+`add-zero: add(x, 0) => x`. When the prefix is omitted, the parser generates a
 trace name from the LHS symbol and physical line number, such as `add-2`.
+
+Within a rule, lowercase leaf names such as `x` and `y` are variables. Function
+symbols are unambiguous because they are followed by parentheses. Use an
+uppercase leaf such as `Zero` when a rule needs a concrete symbolic constant.
+Notebook inputs are concrete terms, so a lowercase leaf there remains a symbol.
 
 Notebook inputs are also plain text, one term per non-empty line:
 
@@ -86,10 +91,10 @@ generated text, for example:
 ```text
 input 1: add(2, 3)
   0. add(2, 3)
-  1. add(3, 2)    [add-step; ?x=2, ?y=3]
-  2. add(4, 1)    [add-step; ?x=3, ?y=2]
-  3. add(5, 0)    [add-step; ?x=4, ?y=1]
-  4. 5            [add-zero; ?x=5]
+  1. add(3, 2)    [add-step; x=2, y=3]
+  2. add(4, 1)    [add-step; x=3, y=2]
+  3. add(5, 0)    [add-step; x=4, y=1]
+  4. 5            [add-zero; x=5]
 result: 5
 status: normal form
 ```
@@ -113,8 +118,8 @@ status: normal-form
 max-steps: 100
 
 --- RULES ---
-add(?x, 0) -> ?x
-add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+add(x, 0) => x
+add(x, y) => add(inc(x), dec(y)) when y > 0
 
 --- INPUTS ---
 add(2, 3)
@@ -140,9 +145,9 @@ The initial language supports:
 - literals such as integers, floats, strings, and booleans;
 - symbols such as `zero`;
 - nested terms such as `pair(left, tree(a, b))`;
-- explicit pattern variables such as `?x`;
-- ordered `LHS -> RHS` rules;
-- restricted guards such as `?x > 0 and ?x <= 10`;
+- contextual lowercase pattern variables such as `x`;
+- ordered `LHS => RHS` rules;
+- restricted guards such as `x > 0 and x <= 10`;
 - a small, documented set of numeric built-ins.
 
 V1 uses deterministic left-to-right innermost rewriting. Enabled rules are tried

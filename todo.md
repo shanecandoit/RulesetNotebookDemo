@@ -21,25 +21,27 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 1. Domain types
 
-- [ ] Implement immutable term variants for variables, literals, and applications.
-- [ ] Represent application children as tuples.
-- [ ] Define structural equality and hashing tests.
-- [ ] Define `SourcePosition` and `SourceSpan` with line/column/offset data.
-- [ ] Define typed diagnostics with code, severity, message, span, and hint.
-- [ ] Implement immutable `Rule` with UUID, name, ASTs, guard, and enabled state.
-- [ ] Implement `EvaluationSettings` with validated step/depth limits.
-- [ ] Define `RewriteEvent`, `EvaluationResult`, `StopReason`, and engine errors.
-- [ ] Add readable `repr` output for development without making it canonical
+- [x] Implement immutable term variants for variables, literals, and applications.
+- [x] Represent application children as tuples.
+- [x] Define structural equality and hashing tests.
+- [x] Define `SourcePosition` and `SourceSpan` with line/column/offset data.
+- [x] Define typed diagnostics with code, severity, message, span, and hint.
+- [x] Implement immutable `Rule` with UUID, name, ASTs, guard, and enabled state.
+- [x] Implement `EvaluationSettings` with validated step/depth limits.
+- [x] Define `RewriteEvent`, `EvaluationResult`, `StopReason`, and engine errors.
+- [x] Add readable `repr` output for development without making it canonical
   serialization.
 
 ## 2. Term lexer and parser
 
-- [ ] Tokenize identifiers, `?variables`, integers, floats, strings, punctuation,
+- [ ] Tokenize identifiers, integers, floats, strings, punctuation,
   comparison operators, and keywords.
 - [ ] Track source spans across whitespace and newlines.
 - [ ] Support escaped quotes, backslashes, tabs, and newlines in strings.
 - [ ] Produce a diagnostic for invalid characters and unterminated strings.
 - [ ] Parse bare symbols and function-like applications.
+- [ ] Interpret lowercase leaves as variables in rule context and as symbols in
+  notebook-input context; reserve uppercase leaves for rule constants.
 - [ ] Parse nested and grouped terms.
 - [ ] Reject variables in notebook input mode.
 - [ ] Reject missing commas, missing parentheses, and trailing unexpected tokens

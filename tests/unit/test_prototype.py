@@ -8,7 +8,7 @@ def test_const_equality():
 
 
 def test_var_repr():
-    assert repr(Var("x")) == "?x"
+    assert repr(Var("x")) == "x"
 
 
 def test_func_repr():

@@ -113,7 +113,7 @@ splitter.
 | Rules                  | Notebook inputs          | Results / traces           |
 |                        |                          |                            |
 | add-zero:              | add(2, 3)                | job: 01J...A               |
-| add(?x, 0) -> ?x       | add(10, 4)               | input 1: add(2, 3)         |
+| add(x, 0) => x         | add(10, 4)               | input 1: add(2, 3)         |
 |                        |                          | ...                        |
 | add-step: ...          |                          | result: 5                  |
 +------------------------+--------------------------+----------------------------+
@@ -186,30 +186,31 @@ cache becomes cumbersome during development.
 ### Terms
 
 ```ebnf
-term           = variable | literal | symbol_or_call | grouped ;
-variable       = "?" identifier ;
+term           = identifier | literal | symbol_or_call | grouped ;
 literal        = integer | float | string | "true" | "false" ;
 symbol_or_call = identifier, ["(", [term, {",", term}], ")"] ;
 grouped        = "(", term, ")" ;
 identifier     = (letter | "_"), {letter | digit | "_" | "-"} ;
 ```
 
-A bare identifier is a zero-arity symbol. Variables are permitted in rules and
-guards but rejected in notebook input terms for v1.
+Identifier meaning is contextual. In rules and guards, a lowercase leaf is a
+variable, while an identifier followed by parentheses is a function symbol. An
+uppercase leaf is a concrete symbolic constant. In notebook inputs, all leaves
+are concrete symbols because inputs do not declare pattern variables.
 
 ### Rules
 
 ```text
-[name:] left-hand-side -> right-hand-side
-[name:] left-hand-side -> right-hand-side when guard-expression
+[name:] left-hand-side => right-hand-side
+[name:] left-hand-side => right-hand-side when guard-expression
 ```
 
 Examples:
 
 ```text
-add(?x, 0) -> ?x
-add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
-negative: add(?x, ?y) -> error("negative operand") when ?y < 0
+add(x, 0) => x
+add(x, y) => add(inc(x), dec(y)) when y > 0
+negative: add(x, y) => error("negative operand") when y < 0
 ```
 
 Explicit rule names must be non-empty and effective names must be unique within
@@ -283,8 +284,8 @@ input-count: 1
 result-summary: 5
 
 --- RULES ---
-add(?x, 0) -> ?x
-add(?x, ?y) -> add(inc(?x), dec(?y)) when ?y > 0
+add(x, 0) => x
+add(x, y) => add(inc(x), dec(y)) when y > 0
 
 --- INPUTS ---
 add(2, 3)
@@ -292,7 +293,7 @@ add(2, 3)
 --- RESULTS-AND-TRACES ---
 input 1: add(2, 3)
   0. add(2, 3)
-  1. add(3, 2) [add-step; ?x=2, ?y=3; position=root]
+  1. add(3, 2) [add-step; x=2, y=3; position=root]
 ...
 result: 5
 status: normal form

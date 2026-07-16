@@ -23,7 +23,7 @@ dev = [
 ]
 
 [project.scripts]
-ruleset-notebook = "ruleset_notebook.__main__:main"
+ruleset-notebook = "ruleset_notebook.cli:main"
 
 [tool.ruff]
 line-length = 88
