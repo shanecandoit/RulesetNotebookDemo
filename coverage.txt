@@ -14,9 +14,9 @@ src\ruleset_notebook\domain\source.py           15      2    87%   17, 31
 src\ruleset_notebook\domain\terms.py            25      2    92%   57, 62
 src\ruleset_notebook\engine.py                  86      3    97%   58, 103, 157
 src\ruleset_notebook\jobs.py                    99      9    91%   63, 65, 67, 80, 86-87, 90, 101, 107
-src\ruleset_notebook\language.py               157      7    96%   61, 100, 113, 171, 195-196, 234
+src\ruleset_notebook\language.py               183     10    95%   71-72, 75, 118, 133, 146, 204, 228-229, 267
 src\ruleset_notebook\ui\__init__.py              2      0   100%
 src\ruleset_notebook\ui\main_window.py         301     66    78%   151, 225, 270-274, 289-297, 308-312, 388-396, 399-401, 412-413, 415-423, 426-428, 432-443, 446-463, 467-472, 476
 --------------------------------------------------------------------------
-TOTAL                                          821     95    88%
-============================= 82 passed in 1.69s ==============================
+TOTAL                                          847     98    88%
+============================= 87 passed in 2.48s ==============================

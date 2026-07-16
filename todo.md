@@ -41,8 +41,8 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] Tokenize identifiers, integers, floats, strings, punctuation,
   comparison operators, and keywords.
 - [ ] Track source spans across whitespace and newlines.
-- [ ] Support escaped quotes, backslashes, tabs, and newlines in strings.
-- [ ] Produce a diagnostic for invalid characters and unterminated strings.
+- [x] Support escaped quotes, backslashes, tabs, and newlines in strings.
+- [x] Produce a diagnostic for invalid characters and unterminated strings.
 - [x] Parse bare symbols and function-like applications.
 - [x] Interpret lowercase leaves as variables in rule context and as symbols in
   notebook-input context; reserve uppercase leaves for rule constants.
@@ -57,9 +57,9 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 3. Formatting and rule validation
 
-- [ ] Implement a canonical term formatter.
-- [ ] Escape literal strings deterministically.
-- [ ] Add parse/format/parse round-trip tests.
+- [x] Implement a canonical term formatter.
+- [x] Escape literal strings deterministically.
+- [x] Add parse/format/parse round-trip tests.
 - [x] Parse or assemble rules from name, LHS, RHS, and guard source fields.
 - [x] Require at least one non-variable symbol/literal shape in an LHS if needed
   to prevent catch-all accidents; document the final choice.

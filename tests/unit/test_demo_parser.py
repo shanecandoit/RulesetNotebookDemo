@@ -2,6 +2,7 @@ import pytest
 
 from ruleset_notebook.language import (
     LanguageSyntaxError,
+    format_term,
     parse_inputs,
     parse_rules,
     validate_rules_text,
@@ -26,7 +27,29 @@ def test_parse_inputs_accepts_supported_terms(source, expected):
 
 @pytest.mark.parametrize(
     "source",
-    ["add(2 3)", "add(2, 3", "add(2, 3))", "add(2, @)", ""],
+    [
+        "3.14",
+        '"quote\\" tab\\t newline\\n"',
+        "true",
+        "pair(-2.5, false)",
+    ],
+)
+def test_parse_and_format_round_trip_literals(source):
+    term = parse_inputs(source)[0][1]
+
+    assert parse_inputs(format_term(term))[0][1] == term
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "add(2 3)",
+        "add(2, 3",
+        "add(2, 3))",
+        "add(2, @)",
+        '"unterminated',
+        "",
+    ],
 )
 def test_parse_inputs_rejects_invalid_terms(source):
     with pytest.raises(LanguageSyntaxError):

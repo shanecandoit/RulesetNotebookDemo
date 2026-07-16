@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+import json
 import re
 
 from .domain import (
@@ -22,7 +24,9 @@ class LanguageSyntaxError(ValueError):
     """A line-oriented syntax error suitable for user-facing diagnostics."""
 
 
-TOKEN_RE = re.compile(r"\s*(?:(-?\d+)|([A-Za-z_]\w*)|([(),]))")
+TOKEN_RE = re.compile(
+    r'\s*(?:(-?(?:\d+\.\d*|\.\d+))|(-?\d+)|("(?:\\.|[^"\\])*")|([A-Za-z_]\w*)|([(),]))'
+)
 GUARD_RE = re.compile(r"^([a-z][A-Za-z0-9_]*)\s*(==|!=|<=|>=|<|>)\s*(-?\d+)$")
 
 
@@ -37,6 +41,8 @@ class TermParser:
         while position < len(source):
             token_match = TOKEN_RE.match(source, position)
             if token_match is None:
+                if source[position] == '"':
+                    raise LanguageSyntaxError("unterminated string literal")
                 raise LanguageSyntaxError(
                     f"unexpected text at column {position + 1}: "
                     f"{source[position : position + 12]!r}"
@@ -55,10 +61,21 @@ class TermParser:
 
     def _parse_term(self) -> Term:
         token = self._take()
+        if re.fullmatch(r"-?(?:\d+\.\d*|\.\d+)", token):
+            return Literal(float(token))
         if re.fullmatch(r"-?\d+", token):
             return Literal(int(token))
+        if token.startswith('"'):
+            try:
+                value = ast.literal_eval(token)
+            except (SyntaxError, ValueError) as error:
+                raise LanguageSyntaxError("invalid string literal") from error
+            return Literal(value)
         if not re.fullmatch(r"[A-Za-z_]\w*", token):
             raise LanguageSyntaxError(f"expected a term, found {token!r}")
+
+        if token in {"true", "false"}:
+            return Literal(token == "true")
 
         if self._peek() != "(":
             if self.lowercase_variables and token[0].islower():
@@ -92,6 +109,22 @@ class TermParser:
 
 def parse_term(source: str, *, lowercase_variables: bool = False) -> Term:
     return TermParser(source, lowercase_variables=lowercase_variables).parse()
+
+
+def format_term(term: Term) -> str:
+    """Return the canonical text form accepted by the term parser."""
+
+    if isinstance(term, Var):
+        return term.name
+    if isinstance(term, Application):
+        children = ", ".join(format_term(child) for child in term.children)
+        return f"{term.symbol}({children})"
+    value = term.value
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    return repr(value)
 
 
 def parse_guard(source: str, line_number: int) -> ComparisonGuard:
