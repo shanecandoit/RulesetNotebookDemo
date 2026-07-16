@@ -1,6 +1,9 @@
+import dataclasses
 import json
 
-from ruleset_notebook.jobs import JobRecord, JobStore
+import pytest
+
+from ruleset_notebook.jobs import JobImportConflictError, JobRecord, JobStore
 from ruleset_notebook.language import LanguageSyntaxError
 
 
@@ -44,6 +47,57 @@ def test_job_store_ignores_malformed_records_but_keeps_valid_ones(tmp_path):
     (tmp_path / "broken.rsjob").write_text("not a job", encoding="utf-8")
 
     assert store.list_jobs() == {valid.job_id: valid}
+
+
+def test_export_then_import_round_trips_complete_job_text(tmp_path):
+    store = JobStore(tmp_path / "cache")
+    other = JobStore(tmp_path / "other-cache")
+    job = make_job()
+    store.write(job)
+    exported = tmp_path / "shared.rsjob"
+
+    store.export_to(job, exported)
+    imported = other.import_from(exported)
+
+    assert imported == job
+    assert exported.read_text(encoding="utf-8") == job.to_text()
+    assert other.list_jobs() == {job.job_id: job}
+
+
+def test_import_identical_duplicate_is_a_noop(tmp_path):
+    store = JobStore(tmp_path / "cache")
+    job = make_job()
+    store.write(job)
+    exported = tmp_path / "copy.rsjob"
+    store.export_to(job, exported)
+
+    assert store.import_from(exported) == job
+    assert store.list_jobs() == {job.job_id: job}
+
+
+def test_import_conflicting_duplicate_is_rejected_without_cache_change(tmp_path):
+    store = JobStore(tmp_path / "cache")
+    original = make_job()
+    store.write(original)
+    conflicting = dataclasses.replace(original, results_text="result: 99")
+    source = tmp_path / "conflict.rsjob"
+    source.write_text(conflicting.to_text(), encoding="utf-8")
+
+    with pytest.raises(JobImportConflictError, match=original.job_id):
+        store.import_from(source)
+
+    assert store.list_jobs() == {original.job_id: original}
+
+
+def test_import_malformed_file_raises_and_leaves_cache_untouched(tmp_path):
+    store = JobStore(tmp_path / "cache")
+    source = tmp_path / "broken.rsjob"
+    source.write_text("not a job", encoding="utf-8")
+
+    with pytest.raises(LanguageSyntaxError):
+        store.import_from(source)
+
+    assert store.list_jobs() == {}
 
 
 def test_job_record_rejects_malformed_summary_pairs():

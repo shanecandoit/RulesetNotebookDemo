@@ -1,6 +1,11 @@
 import pytest
 
-from ruleset_notebook.language import LanguageSyntaxError, parse_inputs, parse_rules
+from ruleset_notebook.language import (
+    LanguageSyntaxError,
+    parse_inputs,
+    parse_rules,
+    validate_rules_text,
+)
 
 
 @pytest.mark.parametrize(
@@ -52,6 +57,29 @@ def test_parse_rules_rejects_duplicate_effective_names():
 add(x, y) => add(inc(x), dec(y))
 """
         )
+
+
+def test_parse_rules_rejects_unbound_rhs_variable():
+    with pytest.raises(LanguageSyntaxError, match="RHS variable 'y'"):
+        parse_rules("pair(x, 0) => y")
+
+
+def test_parse_rules_rejects_catch_all_lhs():
+    with pytest.raises(LanguageSyntaxError, match="LHS must contain"):
+        parse_rules("x => value")
+
+
+def test_validate_rules_text_returns_diagnostic_for_incomplete_rule():
+    diagnostics = validate_rules_text("add(x, 0) =>")
+
+    assert diagnostics[0].code == "rule-syntax"
+    assert diagnostics[0].span is not None
+
+
+def test_validate_rules_text_returns_diagnostic_for_unbound_rhs_variable():
+    diagnostics = validate_rules_text("pair(x, 0) => y")
+
+    assert diagnostics[0].code == "unbound-rhs-variable"
 
 
 def test_rule_context_treats_lowercase_leaves_as_variables():

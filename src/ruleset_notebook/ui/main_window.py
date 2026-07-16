@@ -10,6 +10,7 @@ from PySide6.QtCore import QStandardPaths, Qt
 from PySide6.QtGui import QAction, QBrush, QColor, QFontDatabase, QPalette
 from PySide6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QHeaderView,
     QLabel,
     QMainWindow,
@@ -24,8 +25,18 @@ from PySide6.QtWidgets import (
 )
 
 from ruleset_notebook.engine import evaluate_with_trace, format_trace_lines
-from ruleset_notebook.jobs import JobRecord, JobStore, format_result_summary
-from ruleset_notebook.language import LanguageSyntaxError, parse_inputs, parse_rules
+from ruleset_notebook.jobs import (
+    JobImportConflictError,
+    JobRecord,
+    JobStore,
+    format_result_summary,
+)
+from ruleset_notebook.language import (
+    LanguageSyntaxError,
+    parse_inputs,
+    parse_rules,
+    validate_rules_text,
+)
 
 DEFAULT_RULES = """\
 # Rules are tried from top to bottom.
@@ -105,6 +116,7 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         self.job_table.itemSelectionChanged.connect(self.load_selected_job)
 
         self.rules_edit = self._make_editor("Ordered rules, one per line")
+        self.rules_edit.textChanged.connect(self._validate_rules_draft)
         self.inputs_edit = self._make_editor("Input terms, one per line")
         self.results_edit = self._make_editor("Cached results and traces")
         self.results_edit.setReadOnly(True)
@@ -165,6 +177,14 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         self.run_action.setShortcut("Ctrl+Return")
         self.run_action.triggered.connect(self.run_draft)
 
+        self.open_action = QAction("Open Job File...", self)
+        self.open_action.setShortcut("Ctrl+O")
+        self.open_action.triggered.connect(self.open_job_file)
+
+        self.export_action = QAction("Export Job...", self)
+        self.export_action.setShortcut("Ctrl+E")
+        self.export_action.triggered.connect(self.export_selected_job)
+
         self.duplicate_action = QAction("Duplicate as Draft", self)
         self.duplicate_action.triggered.connect(self.duplicate_as_draft)
 
@@ -179,9 +199,11 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         toolbar = QToolBar("Job actions")
         toolbar.setMovable(False)
         toolbar.addAction(self.new_action)
+        toolbar.addAction(self.open_action)
         toolbar.addSeparator()
         toolbar.addAction(self.run_action)
         toolbar.addSeparator()
+        toolbar.addAction(self.export_action)
         toolbar.addAction(self.duplicate_action)
         toolbar.addAction(self.delete_action)
         toolbar.addAction(self.refresh_action)
@@ -196,6 +218,13 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         self.results_edit.clear()
         self.run_action.setEnabled(True)
         self.statusBar().showMessage("Draft mode - edit text and choose Run")
+
+    def _validate_rules_draft(self) -> None:
+        diagnostics = validate_rules_text(self.rules_edit.toPlainText())
+        if diagnostics:
+            self.statusBar().showMessage(f"Rules: {diagnostics[0].message}")
+        else:
+            self.statusBar().showMessage("Rules look valid")
 
     def run_draft(self) -> None:
         rules_text = self.rules_edit.toPlainText()
@@ -348,6 +377,56 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         self.statusBar().showMessage(
             f"Historical job {job.job_id} - duplicate it to make changes"
         )
+
+    def open_job_file(self, checked: bool = False, path: Path | None = None) -> None:
+        """Import an external ``.rsjob`` file into the cache and select it.
+
+        Draft and selection state are untouched when the import fails.
+        """
+
+        if path is None:
+            chosen, _ = QFileDialog.getOpenFileName(
+                self,
+                "Open Job File",
+                "",
+                "Ruleset job (*.rsjob);;All files (*)",
+            )
+            if not chosen:
+                return
+            path = Path(chosen)
+        try:
+            job = JobStore(self.cache_dir).import_from(path)
+        except (OSError, ValueError, JobImportConflictError) as error:
+            QMessageBox.warning(self, "Could not open job file", str(error))
+            return
+        self.refresh_jobs(select_job_id=job.job_id)
+        self.statusBar().showMessage(f"Imported job {job.job_id}")
+
+    def export_selected_job(
+        self, checked: bool = False, path: Path | None = None
+    ) -> None:
+        """Write the selected cached job to an external ``.rsjob`` file."""
+
+        job = self.selected_job()
+        if job is None:
+            self.statusBar().showMessage("Select a cached job to export")
+            return
+        if path is None:
+            chosen, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export Job",
+                job.filename,
+                "Ruleset job (*.rsjob);;All files (*)",
+            )
+            if not chosen:
+                return
+            path = Path(chosen)
+        try:
+            JobStore(self.cache_dir).export_to(job, path)
+        except OSError as error:
+            QMessageBox.warning(self, "Could not export job", str(error))
+            return
+        self.statusBar().showMessage(f"Exported job {job.job_id} to {path}")
 
     def duplicate_as_draft(self) -> None:
         job = self.selected_job()

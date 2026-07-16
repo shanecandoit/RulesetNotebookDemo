@@ -11,6 +11,10 @@ from pathlib import Path
 from .language import LanguageSyntaxError
 
 
+class JobImportConflictError(Exception):
+    """A different job with the same ID already exists in the cache."""
+
+
 @dataclass(frozen=True)
 class JobRecord:
     """The complete source/result snapshot of one evaluation attempt."""
@@ -140,10 +144,40 @@ class JobStore:
         return jobs
 
     def write(self, job: JobRecord) -> None:
-        target = self.cache_dir / job.filename
-        temporary = target.with_suffix(".tmp")
-        temporary.write_text(job.to_text(), encoding="utf-8")
-        temporary.replace(target)
+        self._atomic_write(job, self.cache_dir / job.filename)
 
     def delete(self, job: JobRecord) -> None:
         (self.cache_dir / job.filename).unlink()
+
+    def export_to(self, job: JobRecord, destination: Path) -> None:
+        """Atomically write the canonical job text to any external path."""
+
+        self._atomic_write(job, destination)
+
+    def import_from(self, source: Path) -> JobRecord:
+        """Validate an external ``.rsjob`` file and copy it into the cache.
+
+        Returns the imported (or already-cached identical) record. Raises
+        ``LanguageSyntaxError`` for malformed files and
+        ``JobImportConflictError`` when a different job with the same ID is
+        already cached. The cache is never modified on failure.
+        """
+
+        job = JobRecord.from_text(source.read_text(encoding="utf-8"))
+        target = self.cache_dir / job.filename
+        if target.exists():
+            existing = JobRecord.from_text(target.read_text(encoding="utf-8"))
+            if existing == job:
+                return existing
+            raise JobImportConflictError(
+                f"a different job with ID {job.job_id} is already cached; "
+                "delete it first if the imported file should replace it"
+            )
+        self._atomic_write(job, target)
+        return job
+
+    @staticmethod
+    def _atomic_write(job: JobRecord, target: Path) -> None:
+        temporary = target.with_suffix(".tmp")
+        temporary.write_text(job.to_text(), encoding="utf-8")
+        temporary.replace(target)

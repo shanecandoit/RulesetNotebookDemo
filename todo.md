@@ -57,16 +57,20 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] Implement a canonical term formatter.
 - [ ] Escape literal strings deterministically.
 - [ ] Add parse/format/parse round-trip tests.
-- [ ] Parse or assemble rules from name, LHS, RHS, and guard source fields.
-- [ ] Require at least one non-variable symbol/literal shape in an LHS if needed
+- [x] Parse or assemble rules from name, LHS, RHS, and guard source fields.
+- [x] Require at least one non-variable symbol/literal shape in an LHS if needed
   to prevent catch-all accidents; document the final choice.
-- [ ] Collect all variables bound by the LHS.
-- [ ] Reject RHS references to variables not present in the LHS.
-- [ ] Accept optional explicit rule names and generate
+- [x] Collect all variables bound by the LHS.
+- [x] Reject RHS references to variables not present in the LHS.
+- [x] Accept optional explicit rule names and generate
   `<lhs-symbol>-<line-number>` when omitted.
-- [ ] Reject duplicate effective rule names so saved trace lines identify rules
+- [x] Reject duplicate effective rule names so saved trace lines identify rules
   unambiguously.
-- [ ] Return validation diagnostics without throwing UI-facing exceptions.
+- [x] Return validation diagnostics without throwing UI-facing exceptions.
+- [x] Add a non-throwing `validate_rules_text` pass that reports incomplete or
+  invalid rule lines with line/column information while the draft is being edited.
+- [x] Show rule-validation feedback in the GUI (status text first; inline
+  highlighting can follow) and keep Run behavior consistent with that result.
 
 ## 4. Guards
 
@@ -152,7 +156,8 @@ item only when its code, tests, and relevant documentation are complete.
 - [x] Write a temporary file and atomically replace the target.
 - [x] Never expose a row as cached before atomic persistence succeeds.
 - [x] Implement read, write, and delete operations.
-- [ ] Implement import/open and export operations.
+- [x] Implement import/open and export operations (see
+  [docs/import-export.md](docs/import-export.md)).
 - [ ] Test all terminal statuses and simulated write failures.
 - [x] Test that two identical runs produce distinct IDs and files.
 - [ ] Consider JSONL only if the cache later becomes one append-only history file.
@@ -237,8 +242,8 @@ item only when its code, tests, and relevant documentation are complete.
 ## 15. File and cache workflow
 
 - [ ] Implement New Draft using the starter text factory.
-- [ ] Implement Open Job File with validation and clear errors.
-- [ ] Implement Export Job using `.rsjob` by default.
+- [x] Implement Open Job File with validation and clear errors.
+- [x] Implement Export Job using `.rsjob` by default.
 - [ ] Implement Duplicate as Draft.
 - [ ] Implement confirmed Delete Cached Job.
 - [ ] Keep selected/draft state untouched when open/export/delete fails.

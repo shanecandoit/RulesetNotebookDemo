@@ -4,7 +4,18 @@ from __future__ import annotations
 
 import re
 
-from .domain import Application, ComparisonGuard, Literal, Rule, Term, Var
+from .domain import (
+    Application,
+    ComparisonGuard,
+    Diagnostic,
+    Literal,
+    Rule,
+    Severity,
+    SourcePosition,
+    SourceSpan,
+    Term,
+    Var,
+)
 
 
 class LanguageSyntaxError(ValueError):
@@ -103,6 +114,75 @@ def generated_rule_name(lhs: Term, line_number: int) -> str:
     return f"{stem}-{line_number}"
 
 
+def _variable_names(term: Term) -> set[str]:
+    if isinstance(term, Var):
+        return {term.name}
+    if isinstance(term, Application):
+        names: set[str] = set()
+        for child in term.children:
+            names.update(_variable_names(child))
+        return names
+    return set()
+
+
+def validate_rule(rule: Rule) -> list[Diagnostic]:
+    diagnostics: list[Diagnostic] = []
+    if isinstance(rule.lhs, Var):
+        diagnostics.append(
+            Diagnostic(
+                code="catch-all-rule",
+                severity=Severity.ERROR,
+                message="a rule LHS must contain a symbol or literal",
+            )
+        )
+    bound = _variable_names(rule.lhs)
+    for name in sorted(_variable_names(rule.rhs) - bound):
+        diagnostics.append(
+            Diagnostic(
+                code="unbound-rhs-variable",
+                severity=Severity.ERROR,
+                message=f"RHS variable {name!r} is not bound by the LHS",
+            )
+        )
+    return diagnostics
+
+
+def validate_rules_text(source: str) -> list[Diagnostic]:
+    """Return rule diagnostics without raising a UI-facing exception."""
+
+    try:
+        rules = parse_rules(source)
+    except LanguageSyntaxError as error:
+        line_number = 1
+        match = re.search(r"rules line (\d+):", str(error))
+        if match:
+            line_number = int(match.group(1))
+        line = source.splitlines()[line_number - 1] if source.splitlines() else ""
+        end_column = max(len(line), 1)
+        span = SourceSpan(
+            SourcePosition(line_number - 1, 0, 0),
+            SourcePosition(line_number - 1, end_column, end_column),
+        )
+        message = str(error)
+        code = "rule-syntax"
+        if "RHS variable" in message:
+            code = "unbound-rhs-variable"
+        elif "LHS must contain" in message:
+            code = "catch-all-rule"
+        return [
+            Diagnostic(
+                code=code,
+                severity=Severity.ERROR,
+                message=message,
+                span=span,
+            )
+        ]
+    diagnostics: list[Diagnostic] = []
+    for rule in rules:
+        diagnostics.extend(validate_rule(rule))
+    return diagnostics
+
+
 def parse_rules(source: str) -> list[Rule]:
     parsed: list[Rule] = []
     names: set[str] = set()
@@ -136,15 +216,19 @@ def parse_rules(source: str) -> list[Rule]:
                 f"rules line {line_number}: duplicate rule name {name!r}"
             )
         names.add(name)
-        parsed.append(
-            Rule(
-                name=name,
-                lhs=lhs,
-                rhs=rhs,
-                guard=guard,
-                source_line=line_number,
-            )
+        rule = Rule(
+            name=name,
+            lhs=lhs,
+            rhs=rhs,
+            guard=guard,
+            source_line=line_number,
         )
+        validation_errors = validate_rule(rule)
+        if validation_errors:
+            raise LanguageSyntaxError(
+                f"rules line {line_number}: {validation_errors[0].message}"
+            )
+        parsed.append(rule)
 
     if not parsed:
         raise LanguageSyntaxError("rules: enter at least one rule")
