@@ -131,35 +131,30 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] Implement sortable `JobId` generation using UUIDv7 or ULID semantics.
 - [ ] Implement immutable `JobRequest` containing exact source text, parsed rules
   and inputs, settings, identity, and creation timestamp.
-- [ ] Implement immutable `JobRecord` containing all request fields plus terminal
-  status, results text, structured results, and completion timestamp.
+- [x] Implement immutable `JobRecord` containing exact rules/inputs/results text,
+  counts, status, summary, timestamp, and job ID.
 - [ ] Implement lightweight `JobSummary` for header-only table rows.
 - [ ] Create default addition rule/input text in one example factory.
-- [ ] Ensure every Run attempt receives a unique job ID.
-- [ ] Decide and test automatic caching of parse-error attempts; automatic caching
-  is the preferred v1 behavior.
+- [x] Ensure every Run attempt receives a unique job ID.
+- [x] Cache parse-error attempts as records with a parse-error status.
 - [ ] Implement Duplicate as Draft without copying job ID, status, or results.
 
-## 9. Plain-text job format and cache
+## 9. JSON job format and cache
 
-- [ ] Define `RULESET-NOTEBOOK-JOB 1` and the `.rsjob` extension.
-- [ ] Define required metadata headers, header ordering, timestamps, status names,
-  counts, and result-summary escaping.
-- [ ] Define `RULES`, `INPUTS`, and `RESULTS-AND-TRACES` section delimiters.
-- [ ] Reject or escape source lines that conflict with reserved delimiters.
-- [ ] Serialize exact UTF-8 rules, inputs, and generated output blocks.
-- [ ] Normalize newlines consistently and document the choice.
-- [ ] Parse headers without loading complete traces.
-- [ ] Fully validate header values and section order on record load.
-- [ ] Reject duplicate/missing sections and unsupported future versions.
-- [ ] Implement one cache file per job ID.
-- [ ] Scan only `.rsjob` headers to build the job list.
-- [ ] Ignore temporary/unrelated files while reporting malformed job files.
-- [ ] Write a temporary file, flush it, and atomically replace the target.
-- [ ] Never expose a row as cached before atomic persistence succeeds.
-- [ ] Implement read, write, delete, import/open, and export operations.
+- [x] Define versioned JSON format `ruleset-notebook-job` version 1 and the
+  `.rsjob` extension.
+- [x] Define required metadata, counts, status, summary, and exact text fields.
+- [x] Serialize exact UTF-8 rules, inputs, and generated output as JSON strings.
+- [x] Validate JSON format/version, required fields, scalar types, and counts.
+- [x] Implement one cache file per job ID.
+- [x] Ignore malformed cache files while retaining valid records.
+- [x] Write a temporary file and atomically replace the target.
+- [x] Never expose a row as cached before atomic persistence succeeds.
+- [x] Implement read, write, and delete operations.
+- [ ] Implement import/open and export operations.
 - [ ] Test all terminal statuses and simulated write failures.
-- [ ] Test that two identical runs produce distinct IDs and files.
+- [x] Test that two identical runs produce distinct IDs and files.
+- [ ] Consider JSONL only if the cache later becomes one append-only history file.
 
 ## 10. Main window shell
 
@@ -277,7 +272,7 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] Selecting a row reloads exact rules, inputs, and output without evaluation.
 - [ ] Duplicate creates an editable draft and a later run gets a new job ID.
 - [ ] The original job file remains unchanged after duplicate/edit/run.
-- [ ] Restart rebuilds all valid Jobs rows from cache headers.
+- [ ] Restart rebuilds all valid Jobs rows from cached JSON job files.
 - [ ] Export/open round-trips the complete job text.
 - [ ] Malformed files do not prevent valid jobs from loading.
 - [ ] The window remains responsive during evaluation and large trace loading.

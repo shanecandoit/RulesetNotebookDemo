@@ -104,38 +104,28 @@ line and column and prevents the draft from becoming a completed job. The failed
 attempt may still be cached with `parse error` status so the exact failure can be
 revisited.
 
-## Job text format
+## Job file format
 
-V1 jobs are human-readable UTF-8 text files rather than JSON or a database. Each
-file contains a small metadata header followed by the three authoritative text
-blocks:
+V1 jobs are versioned JSON objects stored as human-readable UTF-8 `.rsjob` files.
+The JSON object keeps the three authoritative text blocks as ordinary string
+fields, so rules and traces do not need a custom delimiter parser:
 
-```text
-RULESET-NOTEBOOK-JOB 1
-job-id: 01J...
-created-at: 2026-07-15T13:10:00-05:00
-status: normal-form
-max-steps: 100
-
---- RULES ---
-add(x, 0) => x
-add(x, y) => add(inc(x), dec(y)) when y > 0
-
---- INPUTS ---
-add(2, 3)
-
---- RESULTS-AND-TRACES ---
-input 1: add(2, 3)
-...
-result: 5
-status: normal form
+```json
+{
+  "format": "ruleset-notebook-job",
+  "version": 1,
+  "job_id": "01J...",
+  "status": "normal form",
+  "rules_text": "add(x, 0) => x\n...",
+  "inputs_text": "add(2, 3)\n",
+  "results_text": "result: 5\n..."
+}
 ```
 
-Generated job files are stored in an application cache directory using the job
-ID as the filename. The Jobs table is rebuilt by scanning those headers, so v1
-does not need a database or separate index. A user can also open or export an
-individual job file. Writes must be atomic so a crash cannot leave a valid-looking
-partial job.
+Each job still has its own file and is written atomically. The Jobs table scans
+the cache directory and parses valid JSON records; malformed files are ignored
+with a warning. JSONL remains a possible future format for one append-only history
+file, but is unnecessary while the cache is one file per job.
 
 ## Term rewriting behavior
 

@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import sys
-import uuid
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -26,84 +24,8 @@ from PySide6.QtWidgets import (
 )
 
 from ruleset_notebook.engine import evaluate_with_trace, format_trace_lines
+from ruleset_notebook.jobs import JobRecord, JobStore
 from ruleset_notebook.language import LanguageSyntaxError, parse_inputs, parse_rules
-
-
-@dataclass(frozen=True)
-class DemoJob:
-    job_id: str
-    created_at: str
-    status: str
-    rules_text: str
-    inputs_text: str
-    results_text: str
-    rule_count: int
-    input_count: int
-    result_summary: str
-
-    @property
-    def filename(self) -> str:
-        return f"{self.job_id}.rsjob"
-
-    def to_text(self) -> str:
-        return (
-            "RULESET-NOTEBOOK-JOB 1\n"
-            f"job-id: {self.job_id}\n"
-            f"created-at: {self.created_at}\n"
-            f"status: {self.status}\n"
-            "max-steps: 100\n"
-            f"rule-count: {self.rule_count}\n"
-            f"input-count: {self.input_count}\n"
-            f"result-summary: {self.result_summary}\n"
-            "\n--- RULES ---\n"
-            f"{self.rules_text.rstrip()}\n"
-            "\n--- INPUTS ---\n"
-            f"{self.inputs_text.rstrip()}\n"
-            "\n--- RESULTS-AND-TRACES ---\n"
-            f"{self.results_text.rstrip()}\n"
-        )
-
-    @classmethod
-    def from_text(cls, source: str) -> DemoJob:
-        try:
-            header, remainder = source.split("\n--- RULES ---\n", 1)
-            rules_text, remainder = remainder.split("\n--- INPUTS ---\n", 1)
-            inputs_text, results_text = remainder.split(
-                "\n--- RESULTS-AND-TRACES ---\n", 1
-            )
-        except ValueError as error:
-            raise LanguageSyntaxError(
-                "job file has missing or invalid sections"
-            ) from error
-
-        header_lines = header.splitlines()
-        if not header_lines or header_lines[0] != "RULESET-NOTEBOOK-JOB 1":
-            raise LanguageSyntaxError("unsupported job file header")
-        metadata: dict[str, str] = {}
-        for line in header_lines[1:]:
-            if not line.strip():
-                continue
-            key, separator, value = line.partition(": ")
-            if not separator:
-                raise LanguageSyntaxError(f"invalid job header line: {line!r}")
-            metadata[key] = value
-        required = {"job-id", "created-at", "status", "rule-count", "input-count"}
-        if missing := required - metadata.keys():
-            raise LanguageSyntaxError(
-                f"job file is missing: {', '.join(sorted(missing))}"
-            )
-        return cls(
-            job_id=metadata["job-id"],
-            created_at=metadata["created-at"],
-            status=metadata["status"],
-            rules_text=rules_text.strip("\n"),
-            inputs_text=inputs_text.strip("\n"),
-            results_text=results_text.strip("\n"),
-            rule_count=int(metadata["rule-count"]),
-            input_count=int(metadata["input-count"]),
-            result_summary=metadata.get("result-summary", ""),
-        )
-
 
 DEFAULT_RULES = """\
 # Rules are tried from top to bottom.
@@ -121,7 +43,7 @@ add(10, 4)
 class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
     def __init__(self) -> None:
         super().__init__()
-        self.jobs: dict[str, DemoJob] = {}
+        self.jobs: dict[str, JobRecord] = {}
         self.cache_dir = self._cache_directory()
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.setWindowTitle("Ruleset Notebook - Text Job Demo")
@@ -278,7 +200,7 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
     def run_draft(self) -> None:
         rules_text = self.rules_edit.toPlainText()
         inputs_text = self.inputs_edit.toPlainText()
-        job_id = f"{datetime.now():%Y%m%d%H%M%S}-{uuid.uuid4().hex[:6]}"
+        job_id = JobRecord.new_id()
         created_at = datetime.now().astimezone().isoformat(timespec="seconds")
         status = "normal form"
         result_summary = ""
@@ -322,7 +244,7 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
             result_summary = "syntax error"
             results_text = f"status: parse error\nerror: {error}"
 
-        job = DemoJob(
+        job = JobRecord(
             job_id=job_id,
             created_at=created_at,
             status=status,
@@ -348,12 +270,8 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         self.refresh_jobs(select_job_id=job_id)
         self.statusBar().showMessage(f"Cached job {job_id} - {status}")
 
-    def _write_job(self, job: DemoJob) -> None:
-        target = self.cache_dir / job.filename
-        temporary = target.with_suffix(".tmp")
-        temporary.write_text(job.to_text(), encoding="utf-8")
-        print(f"Cached job {job.job_id} to {target}")
-        temporary.replace(target)
+    def _write_job(self, job: JobRecord) -> None:
+        JobStore(self.cache_dir).write(job)
 
     def _job_status_brush(self, status: str) -> QBrush | None:
         if status == "normal form":
@@ -382,13 +300,7 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
                     item.setBackground(brush)
 
     def refresh_jobs(self, select_job_id: str | None = None) -> None:
-        self.jobs.clear()
-        for path in self.cache_dir.glob("*.rsjob"):
-            try:
-                job = DemoJob.from_text(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                continue
-            self.jobs[job.job_id] = job
+        self.jobs = JobStore(self.cache_dir).list_jobs()
 
         ordered = sorted(
             self.jobs.values(), key=lambda job: job.created_at, reverse=True
@@ -415,7 +327,7 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
             self.job_table.selectRow(selected_row)
         self._update_selection_color()
 
-    def selected_job(self) -> DemoJob | None:
+    def selected_job(self) -> JobRecord | None:
         row = self.job_table.currentRow()
         if row < 0:
             return None
@@ -464,7 +376,7 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         if response != QMessageBox.StandardButton.Yes:
             return
         try:
-            (self.cache_dir / job.filename).unlink()
+            JobStore(self.cache_dir).delete(job)
         except OSError as error:
             QMessageBox.warning(self, "Could not delete job", str(error))
             return

@@ -50,7 +50,7 @@ later project the same structured engine and job data.
 - HTML, Markdown, rich text, or embedded output widgets.
 - Interactive trace trees and binding inspector widgets.
 - In-place editing of historical jobs.
-- A database or cache index; v1 scans job file headers.
+- A database or cache index; v1 scans one JSON job file per cached run.
 - Alternative rewrite strategies or branching exploration.
 - Modules, imports, remote jobs, grading, or collaborative editing.
 - Content-addressed result deduplication.
@@ -85,7 +85,7 @@ because it preserves the invariant that every Run has a job ID.
 
 ### Reload
 
-1. Selecting a Jobs row loads its file and verifies its header/version.
+1. Selecting a Jobs row loads its file and validates its JSON format/version.
 2. Rules, inputs, and results panes show the saved text verbatim.
 3. Historical mode makes Rules and Inputs read-only.
 4. Duplicate as Draft copies rules, inputs, and settings into editable draft state
@@ -133,8 +133,9 @@ Use `QTableView` backed by a `QAbstractTableModel`. Suggested columns:
   cancelled, or internal error.
 - Created: local display of a timezone-aware timestamp.
 
-Default order is newest first. The model stores lightweight `JobSummary` objects
-read from headers; it must not parse complete traces merely to populate the table.
+Default order is newest first. The model can parse each small JSON record while
+building the table projection; a separate lightweight `JobSummary` remains a
+future optimization if cached traces grow large.
 Add Refresh and copy-job-ID actions. Search and filters are post-v1 unless the
 cache becomes cumbersome during development.
 
@@ -178,7 +179,7 @@ cache becomes cumbersome during development.
 - Open Job File: inspect an exported job.
 - Export Job: copy selected job to a user path.
 - Delete Cached Job: remove the selected local cached record.
-- Refresh Jobs: rescan cache headers.
+- Refresh Jobs: rescan cached JSON job files.
 - Exit: prompt only for unsaved draft changes or an active run.
 
 ## 5. Plain-text source formats
@@ -265,60 +266,38 @@ must never appear as cached until its atomic replacement succeeds.
 
 ## 7. Job file format
 
-### Design
+Use one versioned JSON object per `<job-id>.rsjob` file. JSON is standard-library
+data, inspectable in a text editor, and removes the need to maintain custom header
+and section delimiters. The object stores metadata plus the exact `rules_text`,
+`inputs_text`, and `results_text` strings.
 
-Use one human-readable UTF-8 text file per job. Filenames are `<job-id>.rsjob`.
-The application cache directory contains only generated job files and can be
-rebuilt by scanning them; no manifest or database is authoritative in v1.
-
-```text
-RULESET-NOTEBOOK-JOB 1
-job-id: 01J...
-created-at: 2026-07-15T13:10:00-05:00
-completed-at: 2026-07-15T13:10:00.125-05:00
-status: normal-form
-max-steps: 100
-max-depth: 200
-rule-count: 2
-input-count: 1
-result-summary: 5
-
---- RULES ---
-add(x, 0) => x
-add(x, y) => add(inc(x), dec(y)) when y > 0
-
---- INPUTS ---
-add(2, 3)
-
---- RESULTS-AND-TRACES ---
-input 1: add(2, 3)
-  0. add(2, 3)
-  1. add(3, 2) [add-step; x=2, y=3; position=root]
-...
-result: 5
-status: normal form
+```json
+{
+  "format": "ruleset-notebook-job",
+  "version": 1,
+  "job_id": "01J...",
+  "created_at": "2026-07-15T13:10:00-05:00",
+  "status": "normal form",
+  "rule_count": 2,
+  "input_count": 1,
+  "result_summary": "5",
+  "rules_text": "add(x, 0) => x\n...",
+  "inputs_text": "add(2, 3)\n",
+  "results_text": "result: 5\n..."
+}
 ```
-
-### Delimiter safety
-
-Because v1 rules and inputs are single-line and generated results are controlled
-by the formatter, reserve lines beginning exactly with `--- ` for section
-delimiters. Reject or escape conflicting source lines. The reader must recognize
-only the expected delimiters in the expected order and report malformed files
-without partially loading them.
 
 ### Reading and writing
 
-- Parse only the header for job-table discovery.
-- Parse and verify all sections when a job is selected.
-- Treat header counts and summaries as display hints; validate them against full
-  content when loading the job.
-- Write to a temporary file in the cache directory, flush it, then atomically
-  replace the target.
-- Never deserialize Python objects or execute content.
+- Parse and validate the complete JSON object when listing or selecting a job.
+- Validate the format tag, version, required fields, scalar types, and counts.
+- Keep exact source/result strings; JSON escaping handles newlines and quotes.
+- Write a temporary file, flush it, then atomically replace the target.
+- Never deserialize Python objects or execute file content.
 - Reject unsupported future versions with a clear error.
-- Preserve the exact rules, inputs, and results block bytes after newline
-  normalization decisions are documented.
+- Ignore malformed cache files while retaining valid jobs.
+- JSONL is deferred for a future single append-only history file; it is not needed
+  for the current one-file-per-job cache.
 
 ## 8. Core domain and application models
 
@@ -369,7 +348,7 @@ Application state:
 - `JobRequest`: immutable run snapshot plus allocated identity.
 - `JobRecord`: immutable completed/failed run ready for persistence.
 - `JobSummary`: lightweight header projection for the table.
-- `JobStore`: lists headers, reads records, atomically writes records, deletes
+- `JobStore`: lists JSON records, atomically writes records, deletes
   cached files, and exports/imports files.
 - `RunController`: owns the active worker and cancellation token.
 
@@ -491,7 +470,7 @@ remain testable without a `QApplication`.
 - Deterministic write/read round trip for every terminal status.
 - Exact preservation of rules, inputs, and generated results blocks.
 - Header-only summary reads.
-- Malformed headers, missing/duplicate/out-of-order delimiters, invalid IDs, and
+- Malformed JSON records, invalid versions/IDs, and
   unsupported versions.
 - Atomic-write failure leaves no valid-looking partial job.
 - Cache scan ignores temporary/unrelated files and reports malformed job files
@@ -549,7 +528,7 @@ Exit: addition reaches `5`; loops stop safely; exact events are asserted.
 
 ### Phase 3: job file and cache
 
-- Implement job IDs, lifecycle models, text serialization, header scans, atomic
+- Implement job IDs, lifecycle models, JSON serialization, cache scans, atomic
   writes, reads, deletion, import/export, and duplicate-as-draft behavior.
 
 Exit: every terminal status round-trips and the cache can rebuild its job list
@@ -596,9 +575,10 @@ data-loss or UI-freeze defects.
 - **History mutation:** cached jobs are immutable; edits occur only in Draft.
 - **Source/result drift:** one atomic job file stores rules, inputs, settings, and
   generated output together.
-- **Cache corruption:** strict header/section validation, temporary-file writes,
+- **Cache corruption:** strict JSON validation, temporary-file writes,
   atomic replace, and graceful per-file scan errors.
-- **Slow startup:** scan headers only and load full traces on selection.
+- **Slow startup:** keep the table projection lightweight; defer `JobSummary`
+  optimization until cache size requires it.
 - **Non-termination:** engine-owned step/depth limits and cancellation.
 - **Unsafe guards:** whitelist grammar, never Python evaluation.
 - **UI freezes:** worker evaluation and bounded GUI updates.
