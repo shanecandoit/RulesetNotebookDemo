@@ -280,7 +280,7 @@ and section delimiters. The object stores metadata plus the exact `rules_text`,
   "status": "normal form",
   "rule_count": 2,
   "input_count": 1,
-  "result_summary": "5",
+  "result_summary": [["add(2, 3)", "5"]],
   "rules_text": "add(x, 0) => x\n...",
   "inputs_text": "add(2, 3)\n",
   "results_text": "result: 5\n..."

@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from ruleset_notebook.engine import evaluate_with_trace, format_trace_lines
-from ruleset_notebook.jobs import JobRecord, JobStore
+from ruleset_notebook.jobs import JobRecord, JobStore, format_result_summary
 from ruleset_notebook.language import LanguageSyntaxError, parse_inputs, parse_rules
 
 DEFAULT_RULES = """\
@@ -203,7 +203,7 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         job_id = JobRecord.new_id()
         created_at = datetime.now().astimezone().isoformat(timespec="seconds")
         status = "normal form"
-        result_summary = ""
+        result_summary: tuple[tuple[str, str], ...] = ()
         results_text = ""
         rule_count = 0
         input_count = 0
@@ -214,7 +214,7 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
             rule_count = len(active_rules)
             input_count = len(inputs)
             sections: list[str] = []
-            summaries: list[str] = []
+            summaries: list[tuple[str, str]] = []
             statuses: list[str] = []
             for display_index, (line_number, term) in enumerate(inputs, 1):
                 result = evaluate_with_trace(
@@ -233,15 +233,15 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
                         "",
                     ]
                 )
-                summaries.append(str(result.output_term))
+                summaries.append((str(result.input_term), str(result.output_term)))
                 statuses.append(input_status)
             results_text = "\n".join(sections).rstrip()
-            result_summary = "; ".join(summaries)
+            result_summary = tuple(summaries)
             if any(item == "step limit" for item in statuses):
                 status = "step limit"
         except LanguageSyntaxError as error:
             status = "parse error"
-            result_summary = "syntax error"
+            result_summary = ()
             results_text = f"status: parse error\nerror: {error}"
 
         job = JobRecord(
@@ -312,7 +312,7 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
                 job.job_id,
                 str(job.rule_count),
                 str(job.input_count),
-                job.result_summary,
+                format_result_summary(job.result_summary),
                 job.status,
                 job.created_at.replace("T", " "),
             ]

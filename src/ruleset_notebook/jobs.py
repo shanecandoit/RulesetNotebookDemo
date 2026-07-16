@@ -23,7 +23,7 @@ class JobRecord:
     results_text: str
     rule_count: int
     input_count: int
-    result_summary: str
+    result_summary: tuple[tuple[str, str], ...]
 
     @classmethod
     def new_id(cls) -> str:
@@ -42,7 +42,7 @@ class JobRecord:
             "status": self.status,
             "rule_count": self.rule_count,
             "input_count": self.input_count,
-            "result_summary": self.result_summary,
+            "result_summary": [list(pair) for pair in self.result_summary],
             "rules_text": self.rules_text,
             "inputs_text": self.inputs_text,
             "results_text": self.results_text,
@@ -81,9 +81,23 @@ class JobRecord:
             input_count = int(payload["input_count"])
         except (TypeError, ValueError) as error:
             raise LanguageSyntaxError("job counts must be integers") from error
-        text_fields = ("job_id", "created_at", "status", "result_summary")
+        text_fields = ("job_id", "created_at", "status")
         if any(not isinstance(payload[field], str) for field in text_fields):
             raise LanguageSyntaxError("job metadata fields must be strings")
+        raw_summary = payload["result_summary"]
+        if not isinstance(raw_summary, list):
+            raise LanguageSyntaxError("result_summary must be a list of pairs")
+        summary: list[tuple[str, str]] = []
+        for pair in raw_summary:
+            if (
+                not isinstance(pair, list)
+                or len(pair) != 2
+                or not all(isinstance(value, str) for value in pair)
+            ):
+                raise LanguageSyntaxError(
+                    "result_summary entries must be [input, output] pairs"
+                )
+            summary.append((pair[0], pair[1]))
         source_fields = ("rules_text", "inputs_text", "results_text")
         if any(not isinstance(payload[field], str) for field in source_fields):
             raise LanguageSyntaxError("job text fields must be strings")
@@ -96,8 +110,16 @@ class JobRecord:
             results_text=payload["results_text"],
             rule_count=rule_count,
             input_count=input_count,
-            result_summary=payload["result_summary"],
+            result_summary=tuple(summary),
         )
+
+
+def format_result_summary(summary: tuple[tuple[str, str], ...]) -> str:
+    """Render summary pairs compactly for the Jobs table."""
+
+    return "; ".join(
+        f"{input_term}:{output_term}" for input_term, output_term in summary
+    )
 
 
 class JobStore:

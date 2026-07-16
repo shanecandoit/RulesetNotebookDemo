@@ -116,11 +116,15 @@ fields, so rules and traces do not need a custom delimiter parser:
   "version": 1,
   "job_id": "01J...",
   "status": "normal form",
+  "result_summary": [["add(2, 3)", "5"]],
   "rules_text": "add(x, 0) => x\n...",
   "inputs_text": "add(2, 3)\n",
   "results_text": "result: 5\n..."
 }
 ```
+
+`result_summary` is a list of `[input, output]` pairs. The Jobs table renders
+those pairs compactly as `input:output; input:output`.
 
 Each job still has its own file and is written atomically. The Jobs table scans
 the cache directory and parses valid JSON records; malformed files are ignored
