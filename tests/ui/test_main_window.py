@@ -49,3 +49,25 @@ def test_export_then_open_round_trips_a_job(tmp_path):
     assert window.results_edit.toPlainText() == job.results_text
     window.close()
     assert application is not None
+
+
+def test_load_example_control_replaces_the_draft_and_runs_it(tmp_path):
+    application = QApplication.instance() or QApplication([])
+    window = RulesetNotebookWindow()
+    window.cache_dir = tmp_path
+    window.refresh_jobs()
+
+    window.example_combo.setCurrentIndex(1)
+    window.load_example_action.trigger()
+
+    assert "larger-left" in window.rules_edit.toPlainText()
+    assert "larger(9, 4)" in window.inputs_edit.toPlainText()
+    assert window.rules_edit.isReadOnly() is False
+    assert "Choose the larger value" in window.statusBar().currentMessage()
+
+    window.run_draft()
+
+    assert "result: 9" in window.results_edit.toPlainText()
+    assert "result: 7" in window.results_edit.toPlainText()
+    window.close()
+    assert application is not None

@@ -20,10 +20,18 @@ from .domain import (
     Rule,
     StopReason,
     Term,
+    UnboundVariableError,
     Var,
 )
 
 Bindings = dict[str, Term]
+
+
+def _term_equal(left: Term, right: Term) -> bool:
+    if isinstance(left, Literal) and isinstance(right, Literal):
+        return type(left.value) is type(right.value) and left.value == right.value
+    return left == right
+
 
 GUARD_OPERATORS = {
     "==": operator.eq,
@@ -43,11 +51,11 @@ def match(
     current = dict(env or {})
     if isinstance(pattern, Var):
         if pattern.name in current:
-            return current if current[pattern.name] == subject else None
+            return current if _term_equal(current[pattern.name], subject) else None
         current[pattern.name] = subject
         return current
     if isinstance(pattern, Literal):
-        return current if pattern == subject else None
+        return current if _term_equal(pattern, subject) else None
     if isinstance(pattern, Application):
         if not isinstance(subject, Application):
             return None
@@ -66,7 +74,11 @@ def match(
 
 def substitute(template: Term, bindings: Mapping[str, Term]) -> Term:
     if isinstance(template, Var):
-        return bindings.get(template.name, template)
+        if template.name not in bindings:
+            raise UnboundVariableError(
+                f"cannot substitute unbound variable {template.name!r}"
+            )
+        return bindings[template.name]
     if isinstance(template, Literal):
         return template
     children = tuple(substitute(child, bindings) for child in template.children)

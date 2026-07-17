@@ -60,6 +60,11 @@ The essential actions are New Draft, Run, Stop, Open Job File, Save/Export Job,
 Duplicate Job as Draft, and Delete Cached Job. V1 does not need per-cell Run
 buttons, draggable cells, rich output widgets, or an HTML renderer.
 
+The toolbar also includes tested examples that can be loaded as a new draft:
+addition by counting, guarded choice, structural record unpacking, and boolean
+decisions. The catalog lives in `src/ruleset_notebook/examples.py`, so examples
+ship with installed and packaged builds rather than existing only in documentation.
+
 ## Plain-text workflow
 
 Rules are written in order:

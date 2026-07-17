@@ -7,6 +7,7 @@ from ruleset_notebook.domain import (
     GuardEvaluationError,
     Literal,
     Rule,
+    UnboundVariableError,
     Var,
 )
 from ruleset_notebook.engine import (
@@ -43,6 +44,7 @@ def test_match_variable_repeat_requires_equality():
     pattern = Application("pair", (Var("x"), Var("x")))
     subject = Application("pair", (Literal(1), Literal(1)))
     assert match(pattern, subject) == {"x": Literal(1)}
+    assert match(pattern, Application("pair", (Literal(1), Literal(2)))) is None
 
 
 def test_match_application_success():
@@ -69,12 +71,27 @@ def test_match_literal_failure():
     assert match(Literal(1), Literal(2)) is None
 
 
+def test_match_bool_and_int_are_distinct_literals():
+    assert match(Literal(True), Literal(1)) is None
+    assert match(Literal(False), Literal(0)) is None
+
+
+def test_match_failure_does_not_leak_partial_bindings():
+    environment = {"existing": Literal(9)}
+    pattern = Application("pair", (Var("x"), Literal(2)))
+    subject = Application("pair", (Literal(1), Literal(3)))
+
+    assert match(pattern, subject, environment) is None
+    assert environment == {"existing": Literal(9)}
+
+
 def test_substitute_variable():
     assert substitute(Var("x"), {"x": Literal(5)}) == Literal(5)
 
 
-def test_substitute_unbound_retains_variable():
-    assert substitute(Var("x"), {}) == Var("x")
+def test_substitute_unbound_raises_defensive_error():
+    with pytest.raises(UnboundVariableError, match="unbound variable 'x'"):
+        substitute(Var("x"), {})
 
 
 def test_substitute_nested_application():
@@ -82,6 +99,19 @@ def test_substitute_nested_application():
     assert substitute(term, {"a": Literal(2)}) == Application(
         "add", (Literal(2), Literal(3))
     )
+
+
+def test_substitute_does_not_mutate_template_or_bindings():
+    term = Application("pair", (Var("x"), Application("box", (Var("x"),))))
+    bindings = {"x": Literal(7)}
+
+    result = substitute(term, bindings)
+
+    assert result == Application(
+        "pair", (Literal(7), Application("box", (Literal(7),)))
+    )
+    assert term == Application("pair", (Var("x"), Application("box", (Var("x"),))))
+    assert bindings == {"x": Literal(7)}
 
 
 def test_rewrite_step_with_no_rules_does_not_change_term():

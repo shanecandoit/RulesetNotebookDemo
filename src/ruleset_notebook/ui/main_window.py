@@ -10,6 +10,7 @@ from PySide6.QtCore import QStandardPaths, Qt
 from PySide6.QtGui import QAction, QBrush, QColor, QFontDatabase, QPalette
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
     QFileDialog,
     QHeaderView,
     QLabel,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from ruleset_notebook.engine import evaluate_with_trace, format_trace_lines
+from ruleset_notebook.examples import DEFAULT_EXAMPLE, EXAMPLES, NotebookExample
 from ruleset_notebook.jobs import (
     JobImportConflictError,
     JobRecord,
@@ -37,18 +39,6 @@ from ruleset_notebook.language import (
     parse_rules,
     validate_rules_text,
 )
-
-DEFAULT_RULES = """\
-# Rules are tried from top to bottom.
-add(x, 0) => x
-add(x, y) => add(inc(x), dec(y)) when y > 0
-"""
-
-DEFAULT_INPUTS = """\
-# One input term per non-empty line.
-add(2, 3)
-add(10, 4)
-"""
 
 
 class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
@@ -195,6 +185,9 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         self.refresh_action.setShortcut("F5")
         self.refresh_action.triggered.connect(self.refresh_jobs)
 
+        self.load_example_action = QAction("Load Example", self)
+        self.load_example_action.triggered.connect(self.load_selected_example)
+
     def _create_toolbar(self) -> None:
         toolbar = QToolBar("Job actions")
         toolbar.setMovable(False)
@@ -207,17 +200,37 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
         toolbar.addAction(self.duplicate_action)
         toolbar.addAction(self.delete_action)
         toolbar.addAction(self.refresh_action)
+        toolbar.addSeparator()
+        toolbar.addWidget(QLabel("Example:"))
+        self.example_combo = QComboBox()
+        for example in EXAMPLES:
+            self.example_combo.addItem(example.title, example.key)
+            self.example_combo.setItemData(
+                self.example_combo.count() - 1,
+                example.description,
+                Qt.ItemDataRole.ToolTipRole,
+            )
+        toolbar.addWidget(self.example_combo)
+        toolbar.addAction(self.load_example_action)
         self.addToolBar(toolbar)
 
     def new_draft(self) -> None:
+        self.load_example(DEFAULT_EXAMPLE)
+
+    def load_selected_example(self) -> None:
+        self.load_example(EXAMPLES[self.example_combo.currentIndex()])
+
+    def load_example(self, example: NotebookExample) -> None:
         self.job_table.clearSelection()
         self.rules_edit.setReadOnly(False)
         self.inputs_edit.setReadOnly(False)
-        self.rules_edit.setPlainText(DEFAULT_RULES)
-        self.inputs_edit.setPlainText(DEFAULT_INPUTS)
+        self.rules_edit.setPlainText(example.rules_text)
+        self.inputs_edit.setPlainText(example.inputs_text)
         self.results_edit.clear()
         self.run_action.setEnabled(True)
-        self.statusBar().showMessage("Draft mode - edit text and choose Run")
+        self.statusBar().showMessage(
+            f"Draft example: {example.title} - {example.description}"
+        )
 
     def _validate_rules_draft(self) -> None:
         diagnostics = validate_rules_text(self.rules_edit.toPlainText())

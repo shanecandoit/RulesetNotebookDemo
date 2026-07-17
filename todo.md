@@ -88,14 +88,14 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 5. Matcher and substitution
 
-- [ ] Match equal literals with deliberate bool/int behavior.
-- [ ] Match applications by symbol and arity before recursing.
-- [ ] Bind a new pattern variable to the subject subtree.
-- [ ] Require repeated pattern variables to match structurally equal subtrees.
-- [ ] Ensure a failed match does not leak partial bindings.
-- [ ] Substitute RHS variables recursively from an immutable bindings map.
-- [ ] Retain a defensive error for unbound substitution variables.
-- [ ] Test nested terms, repeated variables, arity mismatch, literal mismatch, and
+- [x] Match equal literals with deliberate bool/int behavior.
+- [x] Match applications by symbol and arity before recursing.
+- [x] Bind a new pattern variable to the subject subtree.
+- [x] Require repeated pattern variables to match structurally equal subtrees.
+- [x] Ensure a failed match does not leak partial bindings.
+- [x] Substitute RHS variables recursively from an immutable bindings map.
+- [x] Retain a defensive error for unbound substitution variables.
+- [x] Test nested terms, repeated variables, arity mismatch, literal mismatch, and
   immutable input preservation.
 
 ## 6. Rewrite engine
@@ -142,7 +142,8 @@ item only when its code, tests, and relevant documentation are complete.
 - [x] Implement immutable `JobRecord` containing exact rules/inputs/results text,
   counts, status, summary, timestamp, and job ID.
 - [ ] Implement lightweight `JobSummary` for header-only table rows.
-- [ ] Create default addition rule/input text in one example factory.
+- [x] Create a tested project example catalog with addition, guarded choice,
+  structural data, and boolean drafts; let the GUI load any example explicitly.
 - [x] Ensure every Run attempt receives a unique job ID.
 - [x] Cache parse-error attempts as records with a parse-error status.
 - [ ] Implement Duplicate as Draft without copying job ID, status, or results.
