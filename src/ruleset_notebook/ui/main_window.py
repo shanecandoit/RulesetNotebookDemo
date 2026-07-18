@@ -41,7 +41,7 @@ from ruleset_notebook.language import (
 )
 
 
-class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc]
+class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc, unused-ignore]
     def __init__(self) -> None:
         super().__init__()
         self.jobs: dict[str, JobRecord] = {}
