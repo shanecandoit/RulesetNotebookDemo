@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import operator
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from typing import cast
 
 from .domain import (
@@ -20,6 +20,7 @@ from .domain import (
     Rule,
     StopReason,
     Term,
+    TermPosition,
     UnboundVariableError,
     Var,
 )
@@ -161,20 +162,77 @@ def attempt_rewrite(
     return term, False, None, {}
 
 
+def term_at_position(term: Term, position: TermPosition) -> Term:
+    """Read the subtree identified by an ordered child-index path."""
+    current = term
+    for index in position:
+        if not isinstance(current, Application):
+            raise ValueError(f"position {position!r} descends through a leaf term")
+        if index < 0 or index >= len(current.children):
+            raise IndexError(f"child index {index} is outside position {position!r}")
+        current = current.children[index]
+    return current
+
+
+def replace_at_position(term: Term, position: TermPosition, replacement: Term) -> Term:
+    """Return a new term with one subtree replaced, preserving the input term."""
+    if not position:
+        return replacement
+    if not isinstance(term, Application):
+        raise ValueError(f"position {position!r} descends through a leaf term")
+    index, *remainder = position
+    if index < 0 or index >= len(term.children):
+        raise IndexError(f"child index {index} is outside position {position!r}")
+    children = list(term.children)
+    children[index] = replace_at_position(
+        children[index], tuple(remainder), replacement
+    )
+    return Application(term.symbol, tuple(children))
+
+
+def iter_innermost_positions(
+    term: Term, position: TermPosition = ()
+) -> Iterator[TermPosition]:
+    """Yield positions in deterministic left-to-right post-order."""
+    if isinstance(term, Application):
+        for index, child in enumerate(term.children):
+            yield from iter_innermost_positions(child, (*position, index))
+    yield position
+
+
+def attempt_innermost_rewrite(
+    term: Term, rules: list[Rule]
+) -> tuple[Term, bool, Rule | None, Bindings, TermPosition]:
+    """Apply the first rule at the first left-to-right innermost position."""
+    for position in iter_innermost_positions(term):
+        candidate = term_at_position(term, position)
+        replacement, changed, rule, bindings = attempt_rewrite(candidate, rules)
+        if changed:
+            return (
+                replace_at_position(term, position, replacement),
+                True,
+                rule,
+                bindings,
+                position,
+            )
+    return term, False, None, {}, ()
+
+
 def rewrite_step(term: Term, rules: list[Rule]) -> tuple[Term, bool]:
-    result, changed, _rule, _bindings = attempt_rewrite(term, rules)
+    result, changed, _rule, _bindings, _position = attempt_innermost_rewrite(
+        term, rules
+    )
     return result, changed
 
 
 def evaluate(term: Term, rules: list[Rule]) -> Term:
-    """Preserve the prototype's recursive innermost behavior."""
-    if isinstance(term, Application):
-        term = Application(
-            term.symbol,
-            tuple(evaluate(child, rules) for child in term.children),
-        )
-    result, changed = rewrite_step(term, rules)
-    return evaluate(result, rules) if changed else result
+    """Evaluate to normal form using deterministic innermost rewrites."""
+    current = term
+    while True:
+        result, changed = rewrite_step(current, rules)
+        if not changed:
+            return current
+        current = result
 
 
 def evaluate_with_trace(
@@ -187,7 +245,13 @@ def evaluate_with_trace(
     current = term
     events: list[RewriteEvent] = []
     for index in range(1, max_steps + 1):
-        next_term, changed, selected_rule, bindings = attempt_rewrite(current, rules)
+        (
+            next_term,
+            changed,
+            selected_rule,
+            bindings,
+            position,
+        ) = attempt_innermost_rewrite(current, rules)
         if not changed or selected_rule is None:
             return EvaluationResult(
                 input_term=term,
@@ -203,7 +267,7 @@ def evaluate_with_trace(
                 after=next_term,
                 rule_name=selected_rule.name,
                 rule_id=selected_rule.id,
-                position=(),
+                position=position,
                 bindings=dict(bindings),
             )
         )

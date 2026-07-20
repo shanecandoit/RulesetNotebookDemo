@@ -100,19 +100,19 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 6. Rewrite engine
 
-- [ ] Define a term-position representation using child-index tuples.
-- [ ] Implement reading and replacing a subtree at a position.
-- [ ] Enumerate candidate positions in left-to-right innermost order.
-- [ ] Try enabled rules in list order at each candidate position.
-- [ ] Evaluate a rule guard after successful matching and before substitution.
-- [ ] Apply only the first successful rule per step.
-- [ ] Restart traversal from the root after every successful step.
+- [x] Define a term-position representation using child-index tuples.
+- [x] Implement reading and replacing a subtree at a position.
+- [x] Enumerate candidate positions in left-to-right innermost order.
+- [x] Try enabled rules in list order at each candidate position.
+- [x] Evaluate a rule guard after successful matching and before substitution.
+- [x] Apply only the first successful rule per step.
+- [x] Restart traversal from the root after every successful step.
 - [ ] Implement numeric built-ins for `inc`, `dec`, `add`, `sub`, `mul`, and `div`,
   or revise the acceptance example to match the final primitive set.
 - [ ] Define user-rule versus built-in priority and cover it with tests.
 - [ ] Detect division by zero and invalid primitive operand types.
-- [ ] Count successful rewrite steps consistently.
-- [ ] Stop at normal form.
+- [x] Count successful rewrite steps consistently.
+- [x] Stop at normal form.
 - [ ] Stop exactly at `max_steps` and return the partial term.
 - [ ] Stop before a replacement exceeds `max_depth`.
 - [ ] Check cancellation during traversal and between steps.
@@ -122,12 +122,12 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 7. Trace data
 
-- [ ] Record input, output, rule UUID/name, bindings, position, and event kind for
+- [x] Record input, output, rule UUID/name, bindings, and position for
   every successful rewrite.
-- [ ] Freeze or copy bindings before storing them.
+- [x] Freeze or copy bindings before storing them.
 - [ ] Record the final stop reason independently of rewrite events.
 - [ ] Add optional elapsed time without using it in equality assertions.
-- [ ] Test the exact rule sequence and positions for root and nested rewrites.
+- [x] Test the exact rule sequence and positions for root and nested rewrites.
 - [ ] Test trace output for normal form, limit, cancellation, and runtime error.
 - [ ] Add a deterministic plain-text formatter for complete multi-input results.
 
@@ -275,8 +275,8 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] `add(2, 3)` reaches `5` with documented rules/built-ins.
 - [ ] Two input lines produce two result/trace sections in one job.
 - [ ] Trace text reports every rule, position, and binding in order.
-- [ ] Reordering rule source lines changes priority deterministically.
-- [ ] A nested redex rewrites at the expected non-root position.
+- [x] Reordering rule source lines changes priority deterministically.
+- [x] A nested redex rewrites at the expected non-root position.
 - [ ] A self-loop becomes a cached step-limit job at exactly the limit.
 - [ ] Stop produces a cached cancelled job and returns control to the UI.
 - [ ] Selecting a row reloads exact rules, inputs, and output without evaluation.

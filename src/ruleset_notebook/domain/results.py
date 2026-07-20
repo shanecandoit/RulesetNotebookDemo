@@ -7,7 +7,7 @@ from enum import Enum
 from typing import Mapping, Optional
 
 from .source import SourceSpan
-from .terms import Term
+from .terms import Term, TermPosition
 
 
 class StopReason(str, Enum):
@@ -67,7 +67,7 @@ class RewriteEvent:
     after: Term
     rule_name: str
     rule_id: object
-    position: tuple[int, ...]
+    position: TermPosition
     bindings: Mapping[str, Term]
 
     def __repr__(self) -> str:

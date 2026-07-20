@@ -51,6 +51,7 @@ class Application:
 
 
 Term = Union[Var, Literal, Application]
+TermPosition = tuple[int, ...]
 
 
 def is_variable(term: Term) -> bool:

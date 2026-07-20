@@ -25,12 +25,13 @@ from .rules import (
     Rule,
 )
 from .source import SourcePosition, SourceSpan
-from .terms import Application, Literal, Term, Var
+from .terms import Application, Literal, Term, TermPosition, Var
 
 __all__ = [
     "Application",
     "Literal",
     "Term",
+    "TermPosition",
     "Var",
     "SourcePosition",
     "SourceSpan",

@@ -13,9 +13,14 @@ from ruleset_notebook.domain import (
 from ruleset_notebook.engine import (
     evaluate,
     evaluate_guard,
+    evaluate_with_trace,
+    format_trace_lines,
+    iter_innermost_positions,
     match,
+    replace_at_position,
     rewrite_step,
     substitute,
+    term_at_position,
 )
 from ruleset_notebook.language import parse_rules
 
@@ -119,6 +124,110 @@ def test_rewrite_step_with_no_rules_does_not_change_term():
     result, changed = rewrite_step(term, [])
     assert changed is False
     assert result == term
+
+
+def test_term_positions_read_replace_and_enumerate_without_mutation():
+    term = Application(
+        "outer",
+        (
+            Application("left", (Literal(1),)),
+            Application("right", (Literal(2), Literal(3))),
+        ),
+    )
+
+    assert term_at_position(term, (1, 0)) == Literal(2)
+    assert list(iter_innermost_positions(term)) == [
+        (0, 0),
+        (0,),
+        (1, 0),
+        (1, 1),
+        (1,),
+        (),
+    ]
+    assert replace_at_position(term, (1, 0), Literal(9)) == Application(
+        "outer",
+        (
+            Application("left", (Literal(1),)),
+            Application("right", (Literal(9), Literal(3))),
+        ),
+    )
+    assert term_at_position(term, (1, 0)) == Literal(2)
+
+
+def test_evaluate_with_trace_rewrites_left_to_right_innermost_then_root():
+    mark = Rule("mark", Application("mark", (Var("x"),)), Var("x"))
+    collapse = Rule(
+        "collapse",
+        Application("pair", (Var("x"), Var("y"))),
+        Application("done", (Var("x"), Var("y"))),
+    )
+    term = Application(
+        "pair",
+        (
+            Application("mark", (Literal(1),)),
+            Application("mark", (Literal(2),)),
+        ),
+    )
+
+    result = evaluate_with_trace(term, [mark, collapse])
+
+    assert result.output_term == Application("done", (Literal(1), Literal(2)))
+    assert [event.rule_name for event in result.events] == [
+        "mark",
+        "mark",
+        "collapse",
+    ]
+    assert [event.position for event in result.events] == [(0,), (1,), ()]
+    assert "position:0" in format_trace_lines(result)[1]
+    assert "position:1" in format_trace_lines(result)[2]
+    assert "position:root" in format_trace_lines(result)[3]
+
+
+def test_innermost_rewrite_uses_source_order_at_candidate_position():
+    term = Application("box", (Application("mark", (Literal(1),)),))
+    first_then_second = parse_rules(
+        "first: mark(x) => chosen(x)\nsecond: mark(x) => other(x)"
+    )
+    second_then_first = parse_rules(
+        "second: mark(x) => other(x)\nfirst: mark(x) => chosen(x)"
+    )
+
+    first_result = evaluate_with_trace(term, first_then_second)
+    second_result = evaluate_with_trace(term, second_then_first)
+
+    assert first_result.output_term == Application(
+        "box", (Application("chosen", (Literal(1),)),)
+    )
+    assert second_result.output_term == Application(
+        "box", (Application("other", (Literal(1),)),)
+    )
+    assert [event.rule_name for event in first_result.events] == ["first"]
+    assert [event.rule_name for event in second_result.events] == ["second"]
+    assert first_result.events[0].position == (0,)
+
+
+def test_innermost_rewrite_skips_disabled_rules():
+    disabled = Rule(
+        "disabled",
+        Application("mark", (Var("x"),)),
+        Application("wrong", (Var("x"),)),
+        enabled=False,
+    )
+    enabled = Rule(
+        "enabled",
+        Application("mark", (Var("x"),)),
+        Application("right", (Var("x"),)),
+    )
+
+    result = evaluate_with_trace(
+        Application("box", (Application("mark", (Literal(1),)),)),
+        [disabled, enabled],
+    )
+
+    assert result.output_term == Application(
+        "box", (Application("right", (Literal(1),)),)
+    )
+    assert [event.rule_name for event in result.events] == ["enabled"]
 
 
 def test_evaluate_add_two_plus_three_reaches_five():
