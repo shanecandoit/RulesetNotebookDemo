@@ -100,10 +100,16 @@ generated text, for example:
 ```text
 input 1: add(2, 3)
   0. add(2, 3)
-  1. add(3, 2)    [add-step; x=2, y=3]
-  2. add(4, 1)    [add-step; x=3, y=2]
-  3. add(5, 0)    [add-step; x=4, y=1]
-  4. 5            [add-zero; x=5]
+  1. add(inc(2), dec(3)) {rule:add-step, x:2, y:3, position:root}
+  2. add(3, dec(3))      {builtin:inc, position:0}
+  3. add(3, 2)           {builtin:dec, position:1}
+  4. add(inc(3), dec(2)) {rule:add-step, x:3, y:2, position:root}
+  5. add(4, dec(2))      {builtin:inc, position:0}
+  6. add(4, 1)           {builtin:dec, position:1}
+  7. add(inc(4), dec(1)) {rule:add-step, x:4, y:1, position:root}
+  8. add(5, dec(1))      {builtin:inc, position:0}
+  9. add(5, 0)           {builtin:dec, position:1}
+  10. 5                  {rule:add-zero, x:5, position:root}
 result: 5
 status: normal form
 ```
@@ -154,8 +160,11 @@ The initial language supports:
 - a small, documented set of numeric built-ins.
 
 V1 uses deterministic left-to-right innermost rewriting. Enabled rules are tried
-in file order, and the first valid match wins. Every successful rewrite is added
-to the plain-text trace.
+in file order, and the first valid match wins. If no user rule matches a
+candidate position, the engine tries the numeric built-ins `inc`, `dec`, `add`,
+`sub`, `mul`, and `div`. Built-ins are separate, visible rewrite events and count
+toward the step limit just like user rules. Every successful rewrite is added to
+the plain-text trace.
 
 Evaluation has explicit step and term-depth limits and can be cancelled. A loop
 therefore produces a partial cached trace with a `step limit` result rather than

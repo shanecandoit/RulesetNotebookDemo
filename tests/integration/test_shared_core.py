@@ -19,8 +19,14 @@ def test_shared_parser_and_engine_evaluate_gui_example():
     assert result.stop_reason is StopReason.NORMAL_FORM
     assert [event.rule_name for event in result.events] == [
         "add-2",
+        "inc",
+        "dec",
         "add-2",
+        "inc",
+        "dec",
         "add-2",
+        "inc",
+        "dec",
         "add-1",
     ]
 

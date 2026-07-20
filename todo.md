@@ -107,25 +107,25 @@ item only when its code, tests, and relevant documentation are complete.
 - [x] Evaluate a rule guard after successful matching and before substitution.
 - [x] Apply only the first successful rule per step.
 - [x] Restart traversal from the root after every successful step.
-- [ ] Implement numeric built-ins for `inc`, `dec`, `add`, `sub`, `mul`, and `div`,
+- [x] Implement numeric built-ins for `inc`, `dec`, `add`, `sub`, `mul`, and `div`,
   or revise the acceptance example to match the final primitive set.
-- [ ] Define user-rule versus built-in priority and cover it with tests.
-- [ ] Detect division by zero and invalid primitive operand types.
+- [x] Define user-rule versus built-in priority and cover it with tests.
+- [x] Detect division by zero and invalid primitive operand types.
 - [x] Count successful rewrite steps consistently.
 - [x] Stop at normal form.
-- [ ] Stop exactly at `max_steps` and return the partial term.
-- [ ] Stop before a replacement exceeds `max_depth`.
-- [ ] Check cancellation during traversal and between steps.
+- [x] Stop exactly at `max_steps` and return the partial term.
+- [x] Stop before a replacement exceeds `max_depth`.
+- [x] Check cancellation during traversal and between steps.
 - [ ] Optionally detect repeated full terms and annotate a likely cycle.
-- [ ] Ensure ordinary evaluation is iterative enough to avoid Python recursion
+- [x] Ensure ordinary evaluation is iterative enough to avoid Python recursion
   failure on a long rewrite sequence.
 
 ## 7. Trace data
 
-- [x] Record input, output, rule UUID/name, bindings, and position for
+- [x] Record input, output, rule UUID/name, bindings, position, and event kind for
   every successful rewrite.
 - [x] Freeze or copy bindings before storing them.
-- [ ] Record the final stop reason independently of rewrite events.
+- [x] Record the final stop reason independently of rewrite events.
 - [ ] Add optional elapsed time without using it in equality assertions.
 - [x] Test the exact rule sequence and positions for root and nested rewrites.
 - [ ] Test trace output for normal form, limit, cancellation, and runtime error.
@@ -222,7 +222,7 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] Add one cancellation token for the active job.
 - [ ] Make Stop idempotent.
 - [ ] Disable Run while a job is active.
-- [ ] Continue to later inputs after a per-input runtime error unless cancelled.
+- [x] Continue to later inputs after a per-input runtime error unless cancelled.
 - [ ] Prevent selection/new-draft changes from attaching output to the wrong view.
 - [ ] Cache the terminal job before marking it cached in the table.
 - [ ] Show in-memory output plus Retry Save/Export when cache writing fails.
@@ -272,7 +272,7 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 17. Automated acceptance tests
 
-- [ ] `add(2, 3)` reaches `5` with documented rules/built-ins.
+- [x] `add(2, 3)` reaches `5` with documented rules/built-ins.
 - [ ] Two input lines produce two result/trace sections in one job.
 - [ ] Trace text reports every rule, position, and binding in order.
 - [x] Reordering rule source lines changes priority deterministically.

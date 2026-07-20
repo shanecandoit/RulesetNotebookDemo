@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import operator
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from types import MappingProxyType
 from typing import cast
 
 from .domain import (
     Application,
+    DivisionByZeroError,
+    EngineError,
     EvaluationResult,
     GuardComparison,
     GuardConjunction,
@@ -15,8 +18,10 @@ from .domain import (
     GuardExpr,
     GuardGroup,
     GuardValue,
+    InvalidOperandError,
     Literal,
     RewriteEvent,
+    RewriteKind,
     Rule,
     StopReason,
     Term,
@@ -26,6 +31,22 @@ from .domain import (
 )
 
 Bindings = dict[str, Term]
+CancellationCheck = Callable[[], bool]
+
+BUILTIN_ARITIES = {
+    "inc": 1,
+    "dec": 1,
+    "add": 2,
+    "sub": 2,
+    "mul": 2,
+    "div": 2,
+    "+": 2,
+    "-": 2,
+}
+
+
+class _EvaluationCancelled(Exception):
+    pass
 
 
 def _term_equal(left: Term, right: Term) -> bool:
@@ -82,24 +103,48 @@ def substitute(template: Term, bindings: Mapping[str, Term]) -> Term:
         return bindings[template.name]
     if isinstance(template, Literal):
         return template
-    children = tuple(substitute(child, bindings) for child in template.children)
-    if template.symbol in {"+", "-"} and len(children) == 2:
-        left, right = children
-        if (
-            isinstance(left, Literal)
-            and isinstance(left.value, (int, float))
-            and isinstance(right, Literal)
-            and isinstance(right.value, (int, float))
-        ):
-            if template.symbol == "+":
-                return Literal(left.value + right.value)
-            return Literal(left.value - right.value)
-    if template.symbol in {"inc", "dec"} and len(children) == 1:
-        value = children[0]
-        if isinstance(value, Literal) and isinstance(value.value, int):
-            amount = 1 if template.symbol == "inc" else -1
-            return Literal(value.value + amount)
-    return Application(template.symbol, children)
+    return Application(
+        template.symbol,
+        tuple(substitute(child, bindings) for child in template.children),
+    )
+
+
+def _numeric_value(term: Term, symbol: str) -> int | float:
+    if (
+        not isinstance(term, Literal)
+        or isinstance(term.value, bool)
+        or not isinstance(term.value, (int, float))
+    ):
+        raise InvalidOperandError(f"{symbol} requires numeric literal operands")
+    return term.value
+
+
+def attempt_builtin_rewrite(term: Term) -> tuple[Term, bool, str | None]:
+    """Reduce one documented numeric built-in when ``term`` names one."""
+    if not isinstance(term, Application) or term.symbol not in BUILTIN_ARITIES:
+        return term, False, None
+    expected_arity = BUILTIN_ARITIES[term.symbol]
+    if len(term.children) != expected_arity:
+        raise InvalidOperandError(
+            f"{term.symbol} requires {expected_arity} operand"
+            f"{'s' if expected_arity != 1 else ''}"
+        )
+    values = tuple(_numeric_value(child, term.symbol) for child in term.children)
+    if term.symbol == "inc":
+        result = values[0] + 1
+    elif term.symbol == "dec":
+        result = values[0] - 1
+    elif term.symbol in {"add", "+"}:
+        result = values[0] + values[1]
+    elif term.symbol in {"sub", "-"}:
+        result = values[0] - values[1]
+    elif term.symbol == "mul":
+        result = values[0] * values[1]
+    else:
+        if values[1] == 0:
+            raise DivisionByZeroError("div cannot divide by zero")
+        result = values[0] / values[1]
+    return Literal(result), True, term.symbol
 
 
 def _guard_value(value: GuardValue, bindings: Bindings) -> object:
@@ -200,28 +245,59 @@ def iter_innermost_positions(
     yield position
 
 
+def term_depth(term: Term) -> int:
+    """Return one for a leaf and one plus the deepest child for an application."""
+    if not isinstance(term, Application) or not term.children:
+        return 1
+    return 1 + max(term_depth(child) for child in term.children)
+
+
 def attempt_innermost_rewrite(
-    term: Term, rules: list[Rule]
-) -> tuple[Term, bool, Rule | None, Bindings, TermPosition]:
+    term: Term,
+    rules: list[Rule],
+    *,
+    cancelled: CancellationCheck | None = None,
+) -> tuple[
+    Term,
+    bool,
+    str | None,
+    object | None,
+    Bindings,
+    TermPosition,
+    RewriteKind,
+]:
     """Apply the first rule at the first left-to-right innermost position."""
     for position in iter_innermost_positions(term):
+        if cancelled is not None and cancelled():
+            raise _EvaluationCancelled
         candidate = term_at_position(term, position)
         replacement, changed, rule, bindings = attempt_rewrite(candidate, rules)
-        if changed:
+        if changed and rule is not None:
             return (
                 replace_at_position(term, position, replacement),
                 True,
-                rule,
+                rule.name,
+                rule.id,
                 bindings,
                 position,
+                RewriteKind.RULE,
             )
-    return term, False, None, {}, ()
+        replacement, changed, builtin_name = attempt_builtin_rewrite(candidate)
+        if changed and builtin_name is not None:
+            return (
+                replace_at_position(term, position, replacement),
+                True,
+                builtin_name,
+                None,
+                {},
+                position,
+                RewriteKind.BUILTIN,
+            )
+    return term, False, None, None, {}, (), RewriteKind.RULE
 
 
 def rewrite_step(term: Term, rules: list[Rule]) -> tuple[Term, bool]:
-    result, changed, _rule, _bindings, _position = attempt_innermost_rewrite(
-        term, rules
-    )
+    result, changed, *_metadata = attempt_innermost_rewrite(term, rules)
     return result, changed
 
 
@@ -240,19 +316,53 @@ def evaluate_with_trace(
     rules: list[Rule],
     *,
     max_steps: int = 100,
+    max_depth: int = 1000,
+    cancelled: CancellationCheck | None = None,
     source_line: int = 0,
 ) -> EvaluationResult:
+    if max_steps <= 0:
+        raise ValueError("max_steps must be a positive integer")
+    if max_depth <= 0:
+        raise ValueError("max_depth must be a positive integer")
     current = term
     events: list[RewriteEvent] = []
+    if term_depth(current) > max_depth:
+        return EvaluationResult(
+            input_term=term,
+            output_term=current,
+            events=(),
+            stop_reason=StopReason.DEPTH_LIMIT,
+            source_line=source_line,
+        )
     for index in range(1, max_steps + 1):
-        (
-            next_term,
-            changed,
-            selected_rule,
-            bindings,
-            position,
-        ) = attempt_innermost_rewrite(current, rules)
-        if not changed or selected_rule is None:
+        try:
+            (
+                next_term,
+                changed,
+                rewrite_name,
+                rewrite_id,
+                bindings,
+                position,
+                kind,
+            ) = attempt_innermost_rewrite(current, rules, cancelled=cancelled)
+        except _EvaluationCancelled:
+            return EvaluationResult(
+                input_term=term,
+                output_term=current,
+                events=tuple(events),
+                stop_reason=StopReason.CANCELLED,
+                source_line=source_line,
+            )
+        except EngineError as error:
+            return EvaluationResult(
+                input_term=term,
+                output_term=current,
+                events=tuple(events),
+                stop_reason=StopReason.RUNTIME_ERROR,
+                error=error,
+                source_line=source_line,
+            )
+        if not changed or rewrite_name is None:
             return EvaluationResult(
                 input_term=term,
                 output_term=current,
@@ -260,18 +370,35 @@ def evaluate_with_trace(
                 stop_reason=StopReason.NORMAL_FORM,
                 source_line=source_line,
             )
+        if term_depth(next_term) > max_depth:
+            return EvaluationResult(
+                input_term=term,
+                output_term=current,
+                events=tuple(events),
+                stop_reason=StopReason.DEPTH_LIMIT,
+                source_line=source_line,
+            )
         events.append(
             RewriteEvent(
                 index=index,
                 before=current,
                 after=next_term,
-                rule_name=selected_rule.name,
-                rule_id=selected_rule.id,
+                rule_name=rewrite_name,
+                rule_id=rewrite_id,
                 position=position,
-                bindings=dict(bindings),
+                bindings=MappingProxyType(dict(bindings)),
+                kind=kind,
             )
         )
         current = next_term
+        if cancelled is not None and cancelled():
+            return EvaluationResult(
+                input_term=term,
+                output_term=current,
+                events=tuple(events),
+                stop_reason=StopReason.CANCELLED,
+                source_line=source_line,
+            )
     return EvaluationResult(
         input_term=term,
         output_term=current,
@@ -284,7 +411,8 @@ def evaluate_with_trace(
 def format_trace_lines(result: EvaluationResult) -> list[str]:
     lines = [f"  0. {result.input_term}"]
     for event in result.events:
-        fields = [f"rule:{event.rule_name}"]
+        label = "rule" if event.kind is RewriteKind.RULE else "builtin"
+        fields = [f"{label}:{event.rule_name}"]
         fields.extend(
             f"{name}:{value}" for name, value in sorted(event.bindings.items())
         )
@@ -295,4 +423,6 @@ def format_trace_lines(result: EvaluationResult) -> list[str]:
         )
         fields.append(f"position:{position}")
         lines.append(f"  {event.index}. {event.after} {{{', '.join(fields)}}}")
+    if result.error is not None:
+        lines.append(f"  error: {result.error.message}")
     return lines

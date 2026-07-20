@@ -20,6 +20,13 @@ class StopReason(str, Enum):
     RUNTIME_ERROR = "runtime error"
 
 
+class RewriteKind(str, Enum):
+    """The mechanism responsible for one successful rewrite."""
+
+    RULE = "rule"
+    BUILTIN = "built-in"
+
+
 class EngineError(Exception):
     """Base class for typed engine failures raised during evaluation."""
 
@@ -69,6 +76,7 @@ class RewriteEvent:
     rule_id: object
     position: TermPosition
     bindings: Mapping[str, Term]
+    kind: RewriteKind = RewriteKind.RULE
 
     def __repr__(self) -> str:
         return (

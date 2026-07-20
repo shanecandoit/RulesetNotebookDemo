@@ -12,6 +12,7 @@ from .results import (
     GuardEvaluationError,
     InvalidOperandError,
     RewriteEvent,
+    RewriteKind,
     StopReason,
     UnboundVariableError,
 )
@@ -45,6 +46,7 @@ __all__ = [
     "GuardGroup",
     "EvaluationSettings",
     "RewriteEvent",
+    "RewriteKind",
     "EvaluationResult",
     "StopReason",
     "EngineError",

@@ -71,3 +71,22 @@ def test_load_example_control_replaces_the_draft_and_runs_it(tmp_path):
     assert "result: 7" in window.results_edit.toPlainText()
     window.close()
     assert application is not None
+
+
+def test_runtime_error_is_cached_and_later_inputs_still_run(tmp_path):
+    application = QApplication.instance() or QApplication([])
+    window = RulesetNotebookWindow()
+    window.cache_dir = tmp_path
+    window.refresh_jobs()
+    window.rules_edit.setPlainText("unwrap(x) => x")
+    window.inputs_edit.setPlainText("div(1, 0)\nadd(2, 3)")
+
+    window.run_draft()
+
+    job = next(iter(window.jobs.values()))
+    assert job.status == "runtime error"
+    assert "error: div cannot divide by zero" in job.results_text
+    assert "result: 5" in job.results_text
+    assert job.input_count == 2
+    window.close()
+    assert application is not None

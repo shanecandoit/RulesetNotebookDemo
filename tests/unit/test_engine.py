@@ -4,9 +4,13 @@ import pytest
 
 from ruleset_notebook.domain import (
     Application,
+    DivisionByZeroError,
     GuardEvaluationError,
+    InvalidOperandError,
     Literal,
+    RewriteKind,
     Rule,
+    StopReason,
     UnboundVariableError,
     Var,
 )
@@ -21,6 +25,7 @@ from ruleset_notebook.engine import (
     rewrite_step,
     substitute,
     term_at_position,
+    term_depth,
 )
 from ruleset_notebook.language import parse_rules
 
@@ -120,10 +125,129 @@ def test_substitute_does_not_mutate_template_or_bindings():
 
 
 def test_rewrite_step_with_no_rules_does_not_change_term():
-    term = Application("add", (Literal(2), Literal(3)))
+    term = Application("unknown", (Literal(2), Literal(3)))
     result, changed = rewrite_step(term, [])
     assert changed is False
     assert result == term
+
+
+@pytest.mark.parametrize(
+    ("symbol", "children", "expected"),
+    [
+        ("inc", (Literal(2),), Literal(3)),
+        ("dec", (Literal(2),), Literal(1)),
+        ("add", (Literal(2), Literal(3)), Literal(5)),
+        ("sub", (Literal(2), Literal(3)), Literal(-1)),
+        ("mul", (Literal(2), Literal(3)), Literal(6)),
+        ("div", (Literal(5), Literal(2)), Literal(2.5)),
+    ],
+)
+def test_documented_numeric_builtins_are_traced(symbol, children, expected):
+    result = evaluate_with_trace(Application(symbol, children), [])
+
+    assert result.output_term == expected
+    assert result.stop_reason is StopReason.NORMAL_FORM
+    assert result.step_count() == 1
+    assert result.events[0].kind is RewriteKind.BUILTIN
+    assert result.events[0].rule_name == symbol
+    assert f"builtin:{symbol}" in format_trace_lines(result)[1]
+
+
+def test_user_rule_has_priority_over_builtin_at_same_position():
+    user_inc = Rule(
+        "user-inc",
+        Application("inc", (Var("x"),)),
+        Application("wrapped", (Var("x"),)),
+    )
+
+    result = evaluate_with_trace(Application("inc", (Literal(2),)), [user_inc])
+
+    assert result.output_term == Application("wrapped", (Literal(2),))
+    assert result.events[0].kind is RewriteKind.RULE
+    assert result.events[0].rule_name == "user-inc"
+
+
+@pytest.mark.parametrize(
+    "term",
+    [
+        Application("inc", (Literal("two"),)),
+        Application("add", (Literal(True), Literal(1))),
+        Application("mul", (Application("box", ()), Literal(2))),
+        Application("inc", (Literal(1), Literal(2))),
+    ],
+)
+def test_invalid_builtin_operands_return_typed_runtime_error(term):
+    result = evaluate_with_trace(term, [])
+
+    assert result.output_term == term
+    assert result.stop_reason is StopReason.RUNTIME_ERROR
+    assert isinstance(result.error, InvalidOperandError)
+    assert "error:" in format_trace_lines(result)[-1]
+
+
+def test_division_by_zero_returns_typed_runtime_error():
+    term = Application("div", (Literal(1), Literal(0)))
+
+    result = evaluate_with_trace(term, [])
+
+    assert result.stop_reason is StopReason.RUNTIME_ERROR
+    assert isinstance(result.error, DivisionByZeroError)
+
+
+def test_step_limit_returns_exact_event_count_and_partial_term():
+    loop = Rule(
+        "loop", Application("loop", (Var("x"),)), Application("loop", (Var("x"),))
+    )
+
+    result = evaluate_with_trace(
+        Application("loop", (Literal(1),)), [loop], max_steps=3
+    )
+
+    assert result.stop_reason is StopReason.STEP_LIMIT
+    assert result.step_count() == 3
+    assert result.output_term == Application("loop", (Literal(1),))
+
+
+def test_depth_limit_rejects_replacement_before_it_is_recorded():
+    grow = Rule(
+        "grow",
+        Application("grow", (Var("x"),)),
+        Application("box", (Application("grow", (Var("x"),)),)),
+    )
+
+    result = evaluate_with_trace(
+        Application("grow", (Literal(1),)), [grow], max_depth=3
+    )
+
+    assert result.stop_reason is StopReason.DEPTH_LIMIT
+    assert result.step_count() == 1
+    assert term_depth(result.output_term) == 3
+
+
+def test_cancellation_is_checked_during_traversal_and_after_a_step():
+    calls = 0
+
+    def cancelled() -> bool:
+        nonlocal calls
+        calls += 1
+        return calls == 3
+
+    unwrap = Rule("unwrap", Application("box", (Var("x"),)), Var("x"))
+    result = evaluate_with_trace(
+        Application("box", (Literal(1),)), [unwrap], cancelled=cancelled
+    )
+
+    assert result.stop_reason is StopReason.CANCELLED
+    assert result.step_count() == 1
+    assert result.output_term == Literal(1)
+
+
+def test_trace_bindings_are_immutable_snapshots():
+    unwrap = Rule("unwrap", Application("box", (Var("x"),)), Var("x"))
+    result = evaluate_with_trace(Application("box", (Literal(1),)), [unwrap])
+
+    with pytest.raises(TypeError):
+        result.events[0].bindings["x"] = Literal(2)  # type: ignore[index]
 
 
 def test_term_positions_read_replace_and_enumerate_without_mutation():

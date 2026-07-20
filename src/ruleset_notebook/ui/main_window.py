@@ -279,8 +279,15 @@ class RulesetNotebookWindow(QMainWindow):  # type: ignore[misc, unused-ignore]
                 statuses.append(input_status)
             results_text = "\n".join(sections).rstrip()
             result_summary = tuple(summaries)
-            if any(item == "step limit" for item in statuses):
-                status = "step limit"
+            for terminal_status in (
+                "runtime error",
+                "cancelled",
+                "depth limit",
+                "step limit",
+            ):
+                if terminal_status in statuses:
+                    status = terminal_status
+                    break
         except LanguageSyntaxError as error:
             status = "parse error"
             result_summary = ()
