@@ -67,17 +67,45 @@ second(pair(10, 20))
     ),
     NotebookExample(
         key="booleans",
-        title="Boolean decisions",
-        description="Literal matching can select one of two values.",
+        title="Boolean logic and De Morgan's laws",
+        description="Truth tables for not/and/or plus symbolic De Morgan rewrites.",
         rules_text="""\
-choose-true: choose(true, x, y) => x
-choose-false: choose(false, x, y) => y
+# Negation.
+not-true: not(true) => false
+not-false: not(false) => true
+
+# Conjunction truth table.
+and-true-true: and(true, true) => true
+and-true-false: and(true, false) => false
+and-false-true: and(false, true) => false
+and-false-false: and(false, false) => false
+
+# Disjunction truth table.
+or-true-true: or(true, true) => true
+or-true-false: or(true, false) => true
+or-false-true: or(false, true) => true
+or-false-false: or(false, false) => false
+
+# De Morgan's laws are most visible with unresolved symbolic inputs.
+de-morgan-and: not(and(x, y)) => or(not(x), not(y))
+de-morgan-or: not(or(x, y)) => and(not(x), not(y))
 """,
         inputs_text="""\
-choose(true, "keep", "discard")
-choose(false, 1, 2)
+not(true)
+and(true, false)
+or(false, true)
+not(and(left, right))
+not(or(left, right))
+not(and(true, false))
 """,
-        expected_outputs=("'keep'", "2"),
+        expected_outputs=(
+            "False",
+            "False",
+            "True",
+            "or(not(left()), not(right()))",
+            "and(not(left()), not(right()))",
+            "True",
+        ),
     ),
 )
 
