@@ -34,6 +34,41 @@ add(10, 4)
         expected_outputs=("5", "14"),
     ),
     NotebookExample(
+        key="multiply-divide",
+        title="Multiply and divide from add/sub",
+        description="Repeated addition and subtraction over positive whole numbers.",
+        rules_text=(
+            """\
+# Base arithmetic axioms: move one unit at a time.
+add-zero: add(x, 0) => x
+add-step: add(x, y) => add(inc(x), dec(y)) when y > 0
+sub-zero: sub(x, 0) => x
+sub-step: sub(x, y) => sub(dec(x), dec(y)) when y > 0
+
+# Multiplication is repeated addition.
+mul-zero: mul(x, 0) => 0
+mul-step: mul(x, y) => add(x, mul(x, dec(y))) when y > 0
+
+# Division tracks a quotient while repeatedly subtracting a positive divisor.
+div-start: div(x, y) => quotient(x, y, 0) when y > 0
+"""
+            "quotient-step: quotient(x, y, "
+            "count) => quotient(sub(x, y), y, inc(count)) when x >= y "
+            "and y > 0\n"
+            """\
+quotient-done: quotient(x, y, count) => count when x < y and y > 0
+"""
+        ),
+        inputs_text="""\
+sub(9, 4)
+mul(3, 4)
+mul(6, 2)
+div(12, 3)
+div(14, 4)
+""",
+        expected_outputs=("5", "12", "12", "4", "3"),
+    ),
+    NotebookExample(
         key="larger",
         title="Choose the larger value",
         description="A guarded rule followed by an ordered fallback rule.",

@@ -57,7 +57,9 @@ def test_load_example_control_replaces_the_draft_and_runs_it(tmp_path):
     window.cache_dir = tmp_path
     window.refresh_jobs()
 
-    window.example_combo.setCurrentIndex(1)
+    larger_index = window.example_combo.findData("larger")
+    assert larger_index >= 0
+    window.example_combo.setCurrentIndex(larger_index)
     window.load_example_action.trigger()
 
     assert "larger-left" in window.rules_edit.toPlainText()

@@ -61,8 +61,9 @@ Duplicate Job as Draft, and Delete Cached Job. V1 does not need per-cell Run
 buttons, draggable cells, rich output widgets, or an HTML renderer.
 
 The toolbar also includes tested examples that can be loaded as a new draft:
-addition by counting, guarded choice, structural record unpacking, and Boolean
-logic with `not`, `and`, `or`, and De Morgan's laws. The catalog lives in
+addition by counting, multiplication and division derived from `add`/`sub`,
+guarded choice, structural record unpacking, and Boolean logic with `not`, `and`,
+`or`, and De Morgan's laws. The catalog lives in
 `src/ruleset_notebook/examples.py`, so examples
 ship with installed and packaged builds rather than existing only in documentation.
 
