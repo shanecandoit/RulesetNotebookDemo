@@ -214,6 +214,9 @@ ruleset-notebook-cli "add(2, 3)"
 Shared behavior lives in `language.py` and `engine.py`; the GUI lives in
 `ui/main_window.py`. The root `app.py` contains no parser or evaluator logic.
 
+Use the [C code producer](docs/c-code-producer.md) to turn notebook rules and
+inputs into a standalone C program and compare its trace against Python.
+
 ## Development roadmap
 
 1. Package the project and characterize the current engine with tests.
