@@ -68,7 +68,15 @@ def test_deep_benchmark_checks_both_sides_of_the_depth_limit(capsys):
 
 @requires_gcc
 @pytest.mark.parametrize(
-    "example", [DEFAULT_EXAMPLE, example_by_key("factorial")], ids=lambda item: item.key
+    "example",
+    [
+        DEFAULT_EXAMPLE,
+        example_by_key("factorial"),
+        example_by_key("purchase-approvals"),
+        example_by_key("invoice-reconciliation"),
+        example_by_key("expense-review"),
+    ],
+    ids=lambda item: item.key,
 )
 def test_cli_generates_and_verifies_a_shipped_program(example, tmp_path, capsys):
     rules = tmp_path / "rules.txt"

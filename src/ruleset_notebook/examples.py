@@ -159,6 +159,99 @@ not(and(true, false))
             "True",
         ),
     ),
+    NotebookExample(
+        key="purchase-approvals",
+        title="Purchase approvals",
+        description="Route requests by amount or send restricted purchases to finance.",
+        rules_text="""\
+# purchase(request ID, category, amount in cents)
+# Restricted purchases go to finance at any amount.
+restricted-purchase: purchase(id, restricted(), cents) => finance_review(id)
+# Team leads review up to $500, managers up to $5,000, then finance.
+team-lead: purchase(id, kind, cents) => lead_review(id) when cents <= 50000
+manager: purchase(id, kind, cents) => manager_review(id) when cents <= 500000
+finance: purchase(id, kind, cents) => finance_review(id)
+""",
+        inputs_text="""\
+purchase(101, restricted(), 20000)
+purchase(102, standard(), 50000)
+purchase(103, standard(), 50001)
+purchase(104, standard(), 500000)
+purchase(105, standard(), 500001)
+""",
+        expected_outputs=(
+            "finance_review(101)",
+            "lead_review(102)",
+            "manager_review(103)",
+            "manager_review(104)",
+            "finance_review(105)",
+        ),
+    ),
+    NotebookExample(
+        key="invoice-reconciliation",
+        title="Invoice reconciliation",
+        description="Match invoice numbers and calculate payment differences in cents.",
+        rules_text=(
+            """\
+# invoice(invoice number, amount due in cents)
+# payment(referenced invoice number, amount paid in cents)
+paid-in-full: reconcile(invoice(id, cents), payment(id, cents)) => matched(id)
+"""
+            "underpaid: reconcile(invoice(id, due), payment(id, paid))"
+            " => underpayment(id, sub(due, paid)) when paid < due\n"
+            "overpaid: reconcile(invoice(id, due), payment(id, paid))"
+            " => overpayment(id, sub(paid, due)) when paid > due\n"
+            "wrong-invoice: reconcile(invoice(id, due), payment(ref, paid))"
+            " => unmatched_payment(ref)\n"
+        ),
+        inputs_text="""\
+reconcile(invoice(3001, 12500), payment(3001, 12500))
+reconcile(invoice(3002, 12500), payment(3002, 12000))
+reconcile(invoice(3003, 12500), payment(3003, 13250))
+reconcile(invoice(3004, 12500), payment(3999, 12500))
+""",
+        expected_outputs=(
+            "matched(3001)",
+            "underpayment(3002, 500)",
+            "overpayment(3003, 750)",
+            "unmatched_payment(3999)",
+        ),
+    ),
+    NotebookExample(
+        key="expense-review",
+        title="Expense review",
+        description="Review a batch of claims for receipts and category limits.",
+        rules_text="""\
+# claim(claim ID, category, amount in cents, receipt status)
+missing-receipt: claim(id, kind, cents, missing()) => needs_receipt(id)
+# Sample caps are $50 for meals, $100 for transport, and $75 for supplies.
+meal-cap: claim(id, meal(), cents, attached()) => check_cap(id, cents, 5000)
+transport-cap: claim(id, transport(), cents, attached()) => check_cap(id, cents, 10000)
+supplies-cap: claim(id, supplies(), cents, attached()) => check_cap(id, cents, 7500)
+unknown-category: claim(id, kind, cents, attached()) => manual_review(id)
+
+above-cap: check_cap(id, cents, cap) => over_limit(id, sub(cents, cap)) when cents > cap
+within-cap: check_cap(id, cents, cap) => approved(id)
+""",
+        inputs_text="""\
+claim(201, meal(), 4200, attached())
+claim(202, meal(), 5000, attached())
+claim(203, meal(), 5001, attached())
+claim(204, transport(), 10050, attached())
+claim(205, supplies(), 6700, attached())
+claim(206, meal(), 6500, missing())
+claim(207, training(), 3800, attached())
+""",
+        expected_outputs=(
+            "approved(201)",
+            "approved(202)",
+            "over_limit(203, 1)",
+            "over_limit(204, 50)",
+            "approved(205)",
+            "needs_receipt(206)",
+            "manual_review(207)",
+        ),
+    ),
 )
 
 DEFAULT_EXAMPLE = EXAMPLES[0]
