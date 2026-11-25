@@ -49,19 +49,40 @@ Ivy is a second target for the parsed `Rule` and `Term` objects. Its runtime
 reduces interaction nets built from labeled combinators and other agents.
 [Ivy overview](https://vine.dev/docs/ivy-ivm/ivy) · [IVM overview](https://vine.dev/docs/ivy-ivm/ivm)
 
-The Windows smoke test built a sample with `vine build` and ran the resulting
-file with standalone `ivm run`. Pin the runner and the emitter's syntax to the
-same revision. The tested revision emits `iv:main`. Some published examples
-use the older `::main` syntax. [Tested Vine revision](https://github.com/VineLang/vine/tree/cf0c325834d5bf4c8d43aa36f7fb76faf2496988)
+### Run the prototype
 
-Emit Ivy for the addition example and a guarded rule with an ordered fallback.
-Compare results with Python on a small integer subset. For feature parity, the
-lowering must preserve left-to-right innermost evaluation, first-match rule
-priority, guard behavior, and built-in fallback. It must also preserve
-structural equality for repeated variables and explicitly handle duplication
-and erasure of bindings when wiring the net.
+Build both tools from the tested Vine revision so their Ivy syntax agrees.
+Run this command from the Vine checkout. [Tested Vine revision](https://github.com/VineLang/vine/tree/cf0c325834d5bf4c8d43aa36f7fb76faf2496988)
 
-Trace and limit parity require counting source rewrite steps and recording
-their positions. A single source step can take multiple IVM interactions.
-Matching the C backend's signed 64-bit arithmetic also needs an encoding or
-runtime support for wider values. [IVM extrinsics](https://vine.dev/docs/ivy-ivm/extrinsics)
+```bash
+cargo build --locked -p vine-cli --bin vine --bin ivm
+```
+
+Put the resulting `vine` and `ivm` executables on your `PATH`, or supply
+their paths with `--vine` and `--ivm`. Run this from the Ruleset Notebook
+repository root with Python 3.11 or newer.
+
+```bash
+PYTHONPATH=src python -m ruleset_notebook.compiler.ivy \
+  rules.txt inputs.txt -o notebook.ivy --verify
+```
+
+The producer lowers the parsed rules and inputs to Vine and calls
+`vine build` to emit the Ivy file. Its generated program matches rules in
+source order at each left-to-right innermost position. Each successful
+notebook rewrite contributes one step to the same `TRACE 1` protocol used by
+C. Verification compares the full trace with Python, including positions,
+partial results, and stop reasons. Use `--max-steps` and `--max-depth` to
+set the limits embedded in the program.
+
+Run `ivm run notebook.ivy` from the repository root to see IVM's interaction
+statistics alongside the notebook trace. An individual notebook step can
+involve multiple IVM interactions. Use `--no-stats` for just the notebook
+trace. [IVM overview](https://vine.dev/docs/ivy-ivm/ivm)
+
+The prototype supports integer literals, application patterns, repeated
+variables, integer guards, and the integer built-ins `inc`, `dec`, `add`,
+`sub`, and `mul`. Vine's exact `Int` arithmetic covers the C backend's signed
+64-bit range and agrees with Python on integers beyond that range.
+Built-in true division and additional literal types require wider language
+support.

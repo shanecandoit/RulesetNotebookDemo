@@ -1,0 +1,49 @@
+// Notebook rewrite accounting runs inside the generated interaction net.
+enum Attempt {
+  Miss(),
+  Fail(String),
+  Rewrite(Term, String, String, List[N32]),
+}
+
+fn evaluate_input(&io: &IO, input: Term, input_index: N32, source_line: N32,
+                  max_steps: N32, max_depth: N32) {
+  let current = input;
+  let original = render(&current);
+  io.println("INPUT {input_index} LINE {source_line} TERM {original}");
+  io.println("STEP 0 {original}");
+
+  let status = "step limit";
+  let failure = None() as Option[String];
+  if term_depth(&current) > max_depth {
+    status = "depth limit";
+  } else {
+    for index in 0..max_steps {
+      match try_step(&current) {
+        Attempt::Miss() {
+          status = "normal form";
+          break;
+        }
+        Attempt::Fail(code) {
+          status = "runtime error";
+          failure = Some(code);
+          break;
+        }
+        Attempt::Rewrite(next, kind, name, path) {
+          if term_depth(&next) > max_depth {
+            status = "depth limit";
+            break;
+          }
+          current = next;
+          let step = index + 1;
+          let position = if path.len() == 0 { "root" } else { path.join(".") };
+          io.println("STEP {step} {render(&current)} KIND {kind} POSITION {position} NAME {name}");
+        }
+      }
+    }
+  }
+  io.println("RESULT {render(&current)}");
+  io.println("STATUS {status}");
+  if failure is Some(code) {
+    io.println("ERROR {code}");
+  }
+}

@@ -323,11 +323,15 @@ See the [compiler plan](compiler-plan.md) and the
   factorial inputs in one executable.
 - [x] Build and run a sample Ivy file with standalone IVM on Windows. Record
   the tested revision and syntax in the compiler plan.
-- [ ] Pin the Ivy emitter and runner to the same revision. Generate Ivy for
-  addition and a guarded rule with an ordered fallback, then compare results
-  with Python.
-- [ ] Verify notebook-level Ivy traces and limits. Define how to represent
-  signed 64-bit arithmetic on IVM.
+- [x] Use the pinned Vine/IVM revision to emit and run Ivy for the `larger`
+  example. Verify the guarded rule and ordered fallback against Python.
+- [x] Compile the recursive addition example to Ivy. Verify nested rewrites
+  and integer built-in fallback against Python.
+- [x] Compare notebook rewrite order, positions, and step/depth limits with
+  Python for the supported integer subset. Count notebook rewrites separately
+  from IVM interactions.
+- [x] Verify exact Ivy integer results at and beyond the C backend's signed
+  64-bit boundaries.
 - [ ] Extend the C backend beyond its signed 64-bit integer subset as needed,
   including full support for true division.
 

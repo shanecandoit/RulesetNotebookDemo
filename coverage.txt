@@ -10,6 +10,8 @@ src\ruleset_notebook\compiler\__init__.py           2      0   100%
 src\ruleset_notebook\compiler\__main__.py          38      6    84%   46, 51, 57-59, 64
 src\ruleset_notebook\compiler\benchmark.py        121     17    86%   42-45, 50-51, 53-54, 61-64, 166, 168, 170, 172, 206
 src\ruleset_notebook\compiler\codegen.py          100      2    98%   90, 169
+src\ruleset_notebook\compiler\ivy.py               56     43    23%   24-27, 31-92, 96
+src\ruleset_notebook\compiler\ivy_codegen.py      159     81    49%   41, 79-81, 84-86, 93-102, 106-114, 128, 130, 138-168, 172-186, 190-213, 217-262, 270, 299-314
 src\ruleset_notebook\compiler\verification.py      60      6    90%   69-70, 74-76, 83
 src\ruleset_notebook\domain\__init__.py             6      0   100%
 src\ruleset_notebook\domain\diagnostics.py         19      0   100%
@@ -24,5 +26,5 @@ src\ruleset_notebook\language.py                  237     14    94%   78-79, 82,
 src\ruleset_notebook\ui\__init__.py                 2      0   100%
 src\ruleset_notebook\ui\main_window.py            316     63    80%   141, 238, 291-294, 309-317, 330-332, 408-416, 419-421, 432-433, 435-443, 446-448, 452-463, 466-483, 487-492, 496
 -----------------------------------------------------------------------------
-TOTAL                                            1399    139    90%
-============================ 142 passed in 20.19s =============================
+TOTAL                                            1614    263    84%
+======================= 144 passed, 5 skipped in 35.92s =======================

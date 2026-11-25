@@ -57,7 +57,7 @@ def format_reference_trace(results: Iterable[EvaluationResult]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _run(command: list[str], *, stage: str, timeout: float) -> str:
+def run_tool(command: list[str], *, stage: str, timeout: float) -> str:
     try:
         result = subprocess.run(
             command,
@@ -82,7 +82,7 @@ def compile_c(source_path: Path, directory: Path) -> Path:
     if gcc is None:
         raise VerificationError("gcc was not found on PATH")
     binary_path = directory / ("notebook.exe" if os.name == "nt" else "notebook")
-    _run(
+    run_tool(
         [
             gcc,
             "-std=c11",
@@ -100,18 +100,20 @@ def compile_c(source_path: Path, directory: Path) -> Path:
 
 
 def run_c(binary_path: Path) -> str:
-    return _run([str(binary_path)], stage="C program", timeout=10)
+    return run_tool([str(binary_path)], stage="C program", timeout=10)
 
 
-def compare_traces(expected: str, native: str) -> None:
+def compare_traces(expected: str, native: str, *, backend: str = "C") -> None:
     if expected != native:
         diff = difflib.unified_diff(
             expected.splitlines(keepends=True),
             native.splitlines(keepends=True),
             fromfile="Python",
-            tofile="C",
+            tofile=backend,
         )
-        raise VerificationError("C trace differs from Python\n" + "".join(diff))
+        raise VerificationError(
+            f"{backend} trace differs from Python\n" + "".join(diff)
+        )
 
 
 def verify_c(
