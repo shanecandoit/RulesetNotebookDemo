@@ -78,14 +78,32 @@ PYTHONPATH=src python -m ruleset_notebook.compiler.benchmark \
 The report shows total rewrites and Python positions examined, plus median
 times for Python evaluation, Python trace formatting, and running the C
 process with stdout captured. The GCC time is measured once per case.
-The output also reports the C trace size. Each C run is checked against the
-Python trace. A mismatch prints a unified diff and returns a nonzero exit
-code.
+The output also reports the C trace size and how many inputs ended with
+each stop reason. Each C run is checked against the Python trace. A mismatch
+prints a unified diff and returns a nonzero exit code.
 
 Each run uses the C producer in the current checkout. To test edits to a
 generated file or another C implementation, pass
 `--c-source path/to/candidate.c` with the two input files. The candidate must
 use the same inputs and limits and emit the same `TRACE 1` format.
+
+### Stress suites
+
+Use `--suite stress` to run all three stress workloads from the repository root.
+
+```bash
+PYTHONPATH=src python -m ruleset_notebook.compiler.benchmark --suite stress --runs 3
+```
+
+- `--suite wide` runs the countdown beside an unchanged branch with 1,024
+  or 2,048 distinct child terms.
+- `--suite deep` rewrites a leaf at the bottom of terms with depth 128
+  and 256. Add `--max-depth 128` to verify that the first input completes
+  and the second stops at the depth limit.
+- `--suite batch` runs 64 or 512 inputs in one executable. It cycles through
+  factorial arguments 0 to 20, covering a mix of short and long evaluations
+  and repeated inputs. Load **Recursive factorial** from the notebook
+  example menu for a shorter version of the same rules.
 
 ## How it works
 

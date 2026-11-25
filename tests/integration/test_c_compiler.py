@@ -7,7 +7,7 @@ from ruleset_notebook.compiler.__main__ import main
 from ruleset_notebook.compiler.benchmark import main as benchmark_main
 from ruleset_notebook.compiler.verification import VerificationError, verify_c
 from ruleset_notebook.domain import EvaluationSettings
-from ruleset_notebook.examples import DEFAULT_EXAMPLE
+from ruleset_notebook.examples import DEFAULT_EXAMPLE, example_by_key
 
 requires_gcc = pytest.mark.skipif(shutil.which("gcc") is None, reason="gcc not on PATH")
 
@@ -55,12 +55,27 @@ def test_benchmark_checks_an_alternate_c_source_against_python(tmp_path, capsys)
 
 
 @requires_gcc
-def test_cli_generates_and_verifies_the_addition_program(tmp_path, capsys):
+def test_deep_benchmark_checks_both_sides_of_the_depth_limit(capsys):
+    assert benchmark_main(["--suite", "deep", "--runs", "1", "--max-depth", "128"]) == 0
+    output = capsys.readouterr().out
+    rows = [line for line in output.splitlines() if line.startswith("depth ")]
+    assert len(rows) == 2
+    assert rows[0].split()[:4] == ["depth", "128", "1", "2"]
+    assert rows[0].endswith("1 normal form")
+    assert rows[1].split()[:4] == ["depth", "256", "1", "0"]
+    assert rows[1].endswith("1 depth limit")
+
+
+@requires_gcc
+@pytest.mark.parametrize(
+    "example", [DEFAULT_EXAMPLE, example_by_key("factorial")], ids=lambda item: item.key
+)
+def test_cli_generates_and_verifies_a_shipped_program(example, tmp_path, capsys):
     rules = tmp_path / "rules.txt"
     inputs = tmp_path / "inputs.txt"
-    output = tmp_path / "addition.c"
-    rules.write_text(DEFAULT_EXAMPLE.rules_text, encoding="utf-8")
-    inputs.write_text(DEFAULT_EXAMPLE.inputs_text, encoding="utf-8")
+    output = tmp_path / "notebook.c"
+    rules.write_text(example.rules_text, encoding="utf-8")
+    inputs.write_text(example.inputs_text, encoding="utf-8")
 
     assert main([str(rules), str(inputs), "-o", str(output), "--verify"]) == 0
     source = output.read_text(encoding="ascii")

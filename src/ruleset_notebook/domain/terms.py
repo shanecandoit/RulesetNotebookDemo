@@ -46,8 +46,23 @@ class Application:
     children: tuple[Term, ...]
 
     def __repr__(self) -> str:
-        joined = ", ".join(repr(child) for child in self.children)
-        return f"{self.symbol}({joined})"
+        # Keep deep terms printable in the notebook trace.
+        parts: list[str] = []
+        pending: list[Term | str] = [self]
+        while pending:
+            part = pending.pop()
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, Application):
+                parts.extend((part.symbol, "("))
+                pending.append(")")
+                for index in range(len(part.children) - 1, -1, -1):
+                    pending.append(part.children[index])
+                    if index:
+                        pending.append(", ")
+            else:
+                parts.append(repr(part))
+        return "".join(parts)
 
 
 Term = Union[Var, Literal, Application]

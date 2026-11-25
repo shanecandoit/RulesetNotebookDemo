@@ -69,6 +69,23 @@ div(14, 4)
         expected_outputs=("5", "12", "12", "4", "3"),
     ),
     NotebookExample(
+        key="factorial",
+        title="Recursive factorial",
+        description="Base case and guarded recursion for integers from 0 to 20.",
+        rules_text="""\
+factorial-zero: factorial(0) => 1
+factorial-step: factorial(n) => mul(n, factorial(dec(n))) when n > 0
+""",
+        inputs_text="""\
+factorial(0)
+factorial(1)
+factorial(5)
+factorial(10)
+factorial(20)
+""",
+        expected_outputs=("1", "1", "120", "3628800", "2432902008176640000"),
+    ),
+    NotebookExample(
         key="larger",
         title="Choose the larger value",
         description="A guarded rule followed by an ordered fallback rule.",
