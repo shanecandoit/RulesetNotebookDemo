@@ -1,7 +1,8 @@
 # Ruleset Notebook Implementation Checklist
 
-This checklist turns [plan.md](plan.md) into implementation-sized tasks. Check an
-item only when its code, tests, and relevant documentation are complete.
+This checklist tracks the [product plan](plan.md) and the
+[compiler experiments](compiler-plan.md). Check an item only when its code,
+tests, and relevant documentation are complete.
 
 ## 0. Repository baseline
 
@@ -46,7 +47,8 @@ item only when its code, tests, and relevant documentation are complete.
 - [x] Parse bare symbols and function-like applications.
 - [x] Interpret lowercase leaves as variables in rule context and as symbols in
   notebook-input context; reserve uppercase leaves for rule constants.
-- [ ] Parse nested and grouped terms.
+- [x] Parse nested applications.
+- [ ] Support standalone grouping parentheses in terms.
 - [x] Reject variables in notebook input mode (lowercase leaves parse as symbols,
   never `Var` nodes).
 - [ ] Reject missing commas, missing parentheses, and trailing unexpected tokens
@@ -126,7 +128,8 @@ item only when its code, tests, and relevant documentation are complete.
   every successful rewrite.
 - [x] Freeze or copy bindings before storing them.
 - [x] Record the final stop reason independently of rewrite events.
-- [ ] Add optional elapsed time without using it in equality assertions.
+- [ ] Add optional elapsed time to evaluation results without using it in
+  equality assertions.
 - [x] Test the exact rule sequence and positions for root and nested rewrites.
 - [ ] Test trace output for normal form, limit, cancellation, and runtime error.
 - [ ] Add a deterministic plain-text formatter for complete multi-input results.
@@ -142,11 +145,13 @@ item only when its code, tests, and relevant documentation are complete.
 - [x] Implement immutable `JobRecord` containing exact rules/inputs/results text,
   counts, status, summary, timestamp, and job ID.
 - [ ] Implement lightweight `JobSummary` for header-only table rows.
-- [x] Create a tested project example catalog with addition, guarded choice,
-  structural data, and boolean drafts; let the GUI load any example explicitly.
+- [x] Ship tested examples for arithmetic, factorial, guarded choice, record
+  unpacking, and Boolean logic in the toolbar's example menu.
+- [x] Ship tested purchase approval, invoice reconciliation, and expense review
+  examples. Check their expected results in Python and their full traces in C.
 - [x] Ensure every Run attempt receives a unique job ID.
 - [x] Cache parse-error attempts as records with a parse-error status.
-- [ ] Implement Duplicate as Draft without copying job ID, status, or results.
+- [x] Implement Duplicate as Draft without copying job ID, status, or results.
 
 ## 9. JSON job format and cache
 
@@ -160,8 +165,8 @@ item only when its code, tests, and relevant documentation are complete.
 - [x] Write a temporary file and atomically replace the target.
 - [x] Never expose a row as cached before atomic persistence succeeds.
 - [x] Implement read, write, and delete operations.
-- [x] Implement import/open and export operations (see
-  [docs/import-export.md](docs/import-export.md)).
+- [x] Implement import/open and export for the
+  [job file format](README.md#job-file-format).
 - [ ] Test all terminal statuses and simulated write failures.
 - [x] Test that two identical runs produce distinct IDs and files.
 - [ ] Consider JSONL only if the cache later becomes one append-only history file.
@@ -169,10 +174,11 @@ item only when its code, tests, and relevant documentation are complete.
 ## 10. Main window shell
 
 - [ ] Create `QApplication` startup with organization/application names.
-- [ ] Create `QMainWindow` with a Jobs table above a horizontal three-way splitter.
-- [ ] Add labeled Rules, Notebook Inputs, and Results / Traces panes.
-- [ ] Use `QPlainTextEdit` for all three panes; set results read-only.
-- [ ] Use a monospaced font and useful minimum pane widths.
+- [x] Create `QMainWindow` with a Jobs table above a horizontal three-way splitter.
+- [x] Add labeled Rules, Notebook Inputs, and Results / Traces panes.
+- [x] Use `QPlainTextEdit` for all three panes and set results read-only.
+- [x] Use a monospaced font in the text panes.
+- [ ] Set minimum pane widths and verify resizing.
 - [ ] Add File, Edit, Run, View, and Help menus.
 - [ ] Create shared `QAction` objects for menus, toolbar, shortcuts, and enabled
   state.
@@ -186,8 +192,8 @@ item only when its code, tests, and relevant documentation are complete.
 ## 11. Jobs table
 
 - [ ] Implement `JobTableModel` using header-only `JobSummary` values.
-- [ ] Add Job ID, Rules, Inputs, Result Summary, Status, and Created columns.
-- [ ] Sort newest jobs first by default.
+- [x] Add Job ID, Rules, Inputs, Result Summary, Status, and Created columns.
+- [x] Sort newest jobs first by default.
 - [ ] Display shortened IDs while exposing the full ID for copy/tooltips.
 - [ ] Add Refresh Jobs and Copy Job ID actions.
 - [ ] Load the complete record only when a row is selected.
@@ -198,18 +204,19 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 12. Plain-text editing workflow
 
-- [ ] Implement editable Draft mode for Rules and Notebook Inputs.
-- [ ] Implement read-only Historical mode for all three saved blocks.
+- [x] Implement editable Draft mode for Rules and Notebook Inputs.
+- [x] Implement read-only Historical mode for all three saved blocks.
 - [ ] Prompt before New Draft or historical selection would discard dirty draft
   text.
-- [ ] Parse one rule per non-empty, non-comment line in source order.
-- [ ] Parse one input term per non-empty, non-comment line.
+- [x] Parse one rule per non-empty, non-comment line in source order.
+- [x] Parse one input term per non-empty, non-comment line.
 - [ ] Highlight diagnostics at physical line/column positions.
-- [ ] Add New Draft, Run, Stop, Duplicate as Draft, Open Job File, Export Job,
-  Delete Cached Job, and Refresh actions.
+- [x] Add New Draft, Run, Duplicate as Draft, Open Job File, Export Job,
+  Delete Cached Job, and Refresh actions to the toolbar.
+- [ ] Add a Stop action for an active run.
 - [ ] Bind `Ctrl+Enter` to Run the entire draft.
 - [ ] Display generated results in one bounded text update.
-- [ ] Preserve exact saved results text when selecting an old job.
+- [x] Preserve exact saved results text when selecting an old job.
 - [ ] Keep text editing as the only v1 rule/input manipulation mechanism.
 - [ ] Test mode transitions and unsaved-draft prompt branches.
 
@@ -245,16 +252,15 @@ item only when its code, tests, and relevant documentation are complete.
 
 ## 15. File and cache workflow
 
-- [ ] Implement New Draft using the starter text factory.
+- [x] Implement New Draft using the default example.
 - [x] Implement Open Job File with validation and clear errors.
 - [x] Implement Export Job using `.rsjob` by default.
-- [ ] Implement Duplicate as Draft.
-- [ ] Implement confirmed Delete Cached Job.
+- [x] Implement confirmed Delete Cached Job.
 - [ ] Keep selected/draft state untouched when open/export/delete fails.
 - [ ] Prompt Save/Discard/Cancel for dirty drafts when appropriate.
 - [ ] Cancel or safely detach an active run during shutdown.
 - [ ] Store cache directory and local UI preferences in `QSettings`.
-- [ ] Rebuild the Jobs table from files on startup.
+- [x] Rebuild the Jobs table from files on startup.
 - [ ] Test all destructive prompt and I/O failure branches.
 
 ## 16. Help, polish, and accessibility
@@ -273,7 +279,7 @@ item only when its code, tests, and relevant documentation are complete.
 ## 17. Automated acceptance tests
 
 - [x] `add(2, 3)` reaches `5` with documented rules/built-ins.
-- [ ] Two input lines produce two result/trace sections in one job.
+- [x] Two input lines produce two result/trace sections in one job.
 - [ ] Trace text reports every rule, position, and binding in order.
 - [x] Reordering rule source lines changes priority deterministically.
 - [x] A nested redex rewrites at the expected non-root position.
@@ -283,8 +289,8 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] Duplicate creates an editable draft and a later run gets a new job ID.
 - [ ] The original job file remains unchanged after duplicate/edit/run.
 - [ ] Restart rebuilds all valid Jobs rows from cached JSON job files.
-- [ ] Export/open round-trips the complete job text.
-- [ ] Malformed files do not prevent valid jobs from loading.
+- [x] Export/open round-trips the complete job text.
+- [x] Malformed files do not prevent valid jobs from loading.
 - [ ] The window remains responsive during evaluation and large trace loading.
 
 ## 18. Release readiness
@@ -301,6 +307,30 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] Document known limitations and defer rich notebook features explicitly.
 - [ ] Build a Windows artifact only after source installation is reliable.
 
+## 19. Compiled backends and benchmarks
+
+See the [compiler plan](compiler-plan.md) and the
+[C producer guide](docs/c-code-producer.md).
+
+- [x] Emit standalone C11 from the shared parser. Generate a function per rule
+  and a `main()` that evaluates inputs in source order.
+- [x] Compile with GCC and verify versioned traces against Python. Cover ordered
+  rules, guards, repeated variables, integer operations, and step/depth limits.
+- [x] Add a repeatable benchmark for custom rules and inputs, with support for an
+  alternate C source file. Report rewrites, positions examined, timing, trace
+  size, and stop reasons.
+- [x] Verify stress workloads with up to 2,048 children, depth 256, and 512
+  factorial inputs in one executable.
+- [x] Build and run a sample Ivy file with standalone IVM on Windows. Record
+  the tested revision and syntax in the compiler plan.
+- [ ] Pin the Ivy emitter and runner to the same revision. Generate Ivy for
+  addition and a guarded rule with an ordered fallback, then compare results
+  with Python.
+- [ ] Verify notebook-level Ivy traces and limits. Define how to represent
+  signed 64-bit arithmetic on IVM.
+- [ ] Extend the C backend beyond its signed 64-bit integer subset as needed,
+  including full support for true division.
+
 ## Post-v1 backlog
 
 - [ ] Add a read-only interactive trace tree backed by structured events.
@@ -312,5 +342,7 @@ item only when its code, tests, and relevant documentation are complete.
 - [ ] Add branching exploration of all applicable rewrites.
 - [ ] Add named modules, constants, and imports.
 - [ ] Add content hashes and result reuse after format stability.
+- [ ] Profile representative notebooks before deciding whether to memoize
+  subtree evaluation. If implemented, verify rewrite order, traces, and limits.
 - [ ] Consider SQLite only when cache query volume requires an index.
 - [ ] Add notebook tests, grading reports, and packaging/signing workflows.
