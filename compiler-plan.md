@@ -49,9 +49,13 @@ Ivy is a second target for the parsed `Rule` and `Term` objects. Its runtime
 reduces interaction nets built from labeled combinators and other agents.
 [Ivy overview](https://vine.dev/docs/ivy-ivm/ivy) · [IVM overview](https://vine.dev/docs/ivy-ivm/ivm)
 
-First, run a small Ivy program on the development machine, then emit Ivy for
-the addition example and a guarded rule with an ordered fallback. Compare
-results with Python on a small integer subset. For feature parity, the
+The Windows smoke test built a sample with `vine build` and ran the resulting
+file with standalone `ivm run`. Pin the runner and the emitter's syntax to the
+same revision. The tested revision emits `iv:main`. Some published examples
+use the older `::main` syntax. [Tested Vine revision](https://github.com/VineLang/vine/tree/cf0c325834d5bf4c8d43aa36f7fb76faf2496988)
+
+Emit Ivy for the addition example and a guarded rule with an ordered fallback.
+Compare results with Python on a small integer subset. For feature parity, the
 lowering must preserve left-to-right innermost evaluation, first-match rule
 priority, guard behavior, and built-in fallback. It must also preserve
 structural equality for repeated variables and explicitly handle duplication

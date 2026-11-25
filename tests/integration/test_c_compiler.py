@@ -4,11 +4,54 @@ import pytest
 
 from ruleset_notebook.compiler import CompilationError, generate_c
 from ruleset_notebook.compiler.__main__ import main
+from ruleset_notebook.compiler.benchmark import main as benchmark_main
 from ruleset_notebook.compiler.verification import VerificationError, verify_c
 from ruleset_notebook.domain import EvaluationSettings
 from ruleset_notebook.examples import DEFAULT_EXAMPLE
 
 requires_gcc = pytest.mark.skipif(shutil.which("gcc") is None, reason="gcc not on PATH")
+
+
+@requires_gcc
+def test_benchmark_reports_positions_and_respects_limits_for_custom_workload(
+    tmp_path, capsys
+):
+    rules = tmp_path / "rules.txt"
+    inputs = tmp_path / "inputs.txt"
+    rules.write_text("loop(x) => loop(x)", encoding="utf-8")
+    inputs.write_text("loop(1)\nbox(1)", encoding="utf-8")
+
+    assert (
+        benchmark_main([str(rules), str(inputs), "--runs", "1", "--max-steps", "2"])
+        == 0
+    )
+    output = capsys.readouterr().out
+    metrics = next(line for line in output.splitlines() if line.startswith("custom"))
+    assert metrics.split()[:4] == ["custom", "2", "2", "6"]
+    assert "C and Python traces match for every workload." in output
+
+
+@requires_gcc
+def test_benchmark_checks_an_alternate_c_source_against_python(tmp_path, capsys):
+    rules = tmp_path / "rules.txt"
+    inputs = tmp_path / "inputs.txt"
+    source = tmp_path / "candidate.c"
+    rules.write_text("keep(x) => x", encoding="utf-8")
+    inputs.write_text("keep(1)", encoding="utf-8")
+    source.write_text(
+        '#include <stdio.h>\nint main(void) { puts("wrong trace"); return 0; }\n',
+        encoding="ascii",
+    )
+
+    assert (
+        benchmark_main(
+            [str(rules), str(inputs), "--runs", "1", "--c-source", str(source)]
+        )
+        == 2
+    )
+    diagnostics = capsys.readouterr().err
+    assert "C trace differs from Python" in diagnostics
+    assert "+wrong trace" in diagnostics
 
 
 @requires_gcc

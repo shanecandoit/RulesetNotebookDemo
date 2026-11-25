@@ -7,10 +7,11 @@ import json
 import os
 import shutil
 import subprocess
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from ..domain import EvaluationSettings
+from ..domain import EvaluationResult, EvaluationSettings, Rule, Term
 from ..engine import evaluate_with_trace
 from ..language import format_term, parse_inputs, parse_rules
 
@@ -19,23 +20,25 @@ class VerificationError(RuntimeError):
     """The generated program failed to compile, run, or match Python."""
 
 
-def _reference_trace(
-    rules_text: str, inputs_text: str, settings: EvaluationSettings
-) -> str:
-    rules = parse_rules(rules_text)
-    lines = ["TRACE 1"]
-    for index, (source_line, term) in enumerate(parse_inputs(inputs_text), 1):
-        result = evaluate_with_trace(
+def evaluate_inputs(
+    rules: list[Rule], inputs: list[tuple[int, Term]], settings: EvaluationSettings
+) -> Iterator[EvaluationResult]:
+    for source_line, term in inputs:
+        yield evaluate_with_trace(
             term,
             rules,
             source_line=source_line,
             max_steps=settings.max_steps,
             max_depth=settings.max_depth,
         )
-        original = format_term(term)
-        lines.extend(
-            [f"INPUT {index} LINE {source_line} TERM {original}", f"STEP 0 {original}"]
-        )
+
+
+def format_reference_trace(results: Iterable[EvaluationResult]) -> str:
+    lines = ["TRACE 1"]
+    for index, result in enumerate(results, 1):
+        original = format_term(result.input_term)
+        lines.append(f"INPUT {index} LINE {result.source_line} TERM {original}")
+        lines.append(f"STEP 0 {original}")
         for event in result.events:
             position = ".".join(str(part) for part in event.position) or "root"
             name = json.dumps(event.rule_name, ensure_ascii=True)
@@ -74,35 +77,33 @@ def _run(command: list[str], *, stage: str, timeout: float) -> str:
     return result.stdout
 
 
-def verify_c(
-    source: str, rules_text: str, inputs_text: str, settings: EvaluationSettings
-) -> None:
-    """Raise VerificationError if GCC or the native/Python comparison fails."""
+def compile_c(source_path: Path, directory: Path) -> Path:
     gcc = shutil.which("gcc")
     if gcc is None:
         raise VerificationError("gcc was not found on PATH")
+    binary_path = directory / ("notebook.exe" if os.name == "nt" else "notebook")
+    _run(
+        [
+            gcc,
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            str(source_path.resolve()),
+            "-o",
+            str(binary_path),
+        ],
+        stage="gcc",
+        timeout=30,
+    )
+    return binary_path
 
-    with TemporaryDirectory(prefix="ruleset-notebook-") as directory:
-        source_path = Path(directory) / "notebook.c"
-        binary_path = source_path.with_suffix(".exe" if os.name == "nt" else "")
-        source_path.write_text(source, encoding="ascii")
-        _run(
-            [
-                gcc,
-                "-std=c11",
-                "-Wall",
-                "-Wextra",
-                "-Werror",
-                str(source_path),
-                "-o",
-                str(binary_path),
-            ],
-            stage="gcc",
-            timeout=30,
-        )
-        native = _run([str(binary_path)], stage="generated program", timeout=10)
 
-    expected = _reference_trace(rules_text, inputs_text, settings)
+def run_c(binary_path: Path) -> str:
+    return _run([str(binary_path)], stage="C program", timeout=10)
+
+
+def compare_traces(expected: str, native: str) -> None:
     if expected != native:
         diff = difflib.unified_diff(
             expected.splitlines(keepends=True),
@@ -110,4 +111,19 @@ def verify_c(
             fromfile="Python",
             tofile="C",
         )
-        raise VerificationError("generated trace differs from Python\n" + "".join(diff))
+        raise VerificationError("C trace differs from Python\n" + "".join(diff))
+
+
+def verify_c(
+    source: str, rules_text: str, inputs_text: str, settings: EvaluationSettings
+) -> None:
+    """Raise VerificationError if GCC or the native/Python comparison fails."""
+    with TemporaryDirectory(prefix="ruleset-notebook-") as directory:
+        source_path = Path(directory) / "notebook.c"
+        source_path.write_text(source, encoding="ascii")
+        native = run_c(compile_c(source_path, Path(directory)))
+
+    results = evaluate_inputs(
+        parse_rules(rules_text), parse_inputs(inputs_text), settings
+    )
+    compare_traces(format_reference_trace(results), native)
